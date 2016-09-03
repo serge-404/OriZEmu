@@ -554,7 +554,7 @@ begin
     glInterruptDelay := 20;        // from ini ?
     initParity;
     Z80Reset;
-    IdeProController.Reset;
+    IdeProController.ResetController;
     SDController.Reset;
   finally
     timeBeginPeriod(1);
@@ -759,7 +759,7 @@ begin
       IdeProController.ImageFile[0]:=ProImage[0];
       IdeProController.ImageFile[1]:=ProImage[1];
       IdeProController.OnAccess:=OnIdeAccess;
-      IdeProController.Reset;
+      IdeProController.ResetController;
     except
       on E:Exception do
           Application.MessageBox(PChar(E.Message), 'Error', MB_OK+MB_ICONSTOP);

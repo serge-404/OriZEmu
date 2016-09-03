@@ -104,7 +104,7 @@ const
   ide_cmd_read     = $20;
   ide_cmd_write    = $30;
   ide_cmd_seek     = $70;
-  ide_cmd_init     = $90;
+  ide_cmd_reset    = $08;       // ATA4 !!!
   ide_cmd_id       = $EC;
   ide_cmd_spindown = $E0;
   ide_cmd_spinup   = $E1;
@@ -233,32 +233,7 @@ type
     FDevice: array[HddDeviceMaster..HddDeviceSlave] of TIdeDevice;
     FImageRO: array[HddDeviceMaster..HddDeviceSlave] of boolean;
     FReserved: array[0..7] of integer;
-    FOnAccess: TIdeAccess;
-  private
-    function GetImageFile(Index: Integer): String;
-    procedure SetImageFile(Index: Integer; const Value: String);
-    procedure Dev0Access(Sender: TObject; Op: char);
-    procedure Dev1Access(Sender: TObject; Op: char);
-    procedure SetOnAccess(const Value: TIdeAccess);
-    function GetImageRO(Index: Integer): boolean;
-    procedure SetImageRO(Index: Integer; const Value: boolean);
-  protected
-    function GetPort(Index: Integer): byte; override;                // interface with device
-    procedure SetPort(Index: Integer; const Value: byte); override;  // interface with device
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-    procedure SaveToStream(Stream: TStream);   override;
-    procedure ReadFromStream(Stream: TStream); override;
-    property ImageFile[Index: Integer]:String read GetImageFile write SetImageFile;
-    property ImageRO[Index: Integer]:boolean read GetImageRO write SetImageRO;
-    property OnAccess:TIdeAccess read FOnAccess write SetOnAccess;
-  end;
-
-  TIdeProController = class(TObject)
-    FDevice: array[HddDeviceMaster..HddDeviceSlave] of TIdeDevice;
-    FImageRO: array[HddDeviceMaster..HddDeviceSlave] of boolean;
-    FReserved: array[0..7] of integer;
+    FDevAccess: integer;
     FOnAccess: TIdeAccess;
   private
     function GetImageFile(Index: Integer): String;
@@ -270,15 +245,19 @@ type
     procedure SetImageRO(Index: Integer; const Value: boolean);
     function GetIdeReg(Index: Integer): byte;
     procedure SetIdeReg(Index: Integer; const Value: byte);
+  protected
+    function GetPort(Index: Integer): byte; override;                // interface with device
+    procedure SetPort(Index: Integer; const Value: byte); override;  // interface with device
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
-    procedure Reset;
-    procedure SaveToStream(Stream: TStream);
-    procedure ReadFromStream(Stream: TStream);
+    procedure SaveToStream(Stream: TStream);   override;
+    procedure ReadFromStream(Stream: TStream); override;
+    procedure ResetController;
     property IdeReg[Index:Integer]:byte read GetIdeReg write SetIdeReg;
     property ImageFile[Index: Integer]:String read GetImageFile write SetImageFile;
     property ImageRO[Index: Integer]:boolean read GetImageRO write SetImageRO;
+    property DevAccess:integer read FDevAccess write FDevAccess;
     property OnAccess:TIdeAccess read FOnAccess write SetOnAccess;
   end;
 
@@ -289,7 +268,7 @@ var
   ProImage: array [HddDeviceMaster..HddDeviceSlave] of String;
   ProRO: array [HddDeviceMaster..HddDeviceSlave] of boolean;
   IdeController: TIdeController;
-  IdeProController: TIdeProController;
+  IdeProController: TIdeController;
 
 implementation
 
@@ -297,6 +276,7 @@ constructor TIdeController.Create;
 begin
   inherited;
   Reset;
+  FDevAccess:=0;
   FOnAccess:=nil;
   FDevice[HddDeviceMaster]:=nil;
   FDevice[HddDeviceSlave]:=nil;
@@ -312,13 +292,13 @@ end;
 procedure TIdeController.Dev0Access(Sender: TObject; Op: char);
 begin
   if Assigned(FOnAccess) then
-    FOnAccess(Self, 0, Op);
+    FOnAccess(Self, FDevAccess, Op);
 end;
 
 procedure TIdeController.Dev1Access(Sender: TObject; Op: char);
 begin
   if Assigned(FOnAccess) then
-    FOnAccess(Self, 1, Op);
+    FOnAccess(Self, FDevAccess+1, Op);
 end;
 
 function TIdeController.GetImageFile(Index: Integer): String;
@@ -457,6 +437,29 @@ begin
   end;
 end;
 
+function TIdeController.GetIdeReg(Index: Integer): byte;
+begin
+  Result:=$FF;
+  if Assigned(FDevice[HddDeviceMaster]) and FDevice[HddDeviceMaster].Active then
+    Result:=FDevice[HddDeviceMaster].IdeReg[Index]
+  else if Assigned(FDevice[HddDeviceSlave]) and FDevice[HddDeviceSlave].Active then
+    Result:=FDevice[HddDeviceSlave].IdeReg[Index];
+end;
+
+procedure TIdeController.ResetController;
+begin
+  if Assigned(FDevice[HddDeviceMaster]) then FDevice[HddDeviceMaster].IdeReset;
+  if Assigned(FDevice[HddDeviceSlave]) then FDevice[HddDeviceSlave].IdeReset;
+end;
+
+procedure TIdeController.SetIdeReg(Index: Integer; const Value: byte);
+begin
+  if Assigned(FDevice[HddDeviceMaster]) then
+    FDevice[HddDeviceMaster].IdeReg[Index]:=Value;
+  if Assigned(FDevice[HddDeviceSlave]) then
+    FDevice[HddDeviceSlave].IdeReg[Index]:=Value;
+end;
+
 { TIdeDevice }
 
 constructor TIdeDevice.Create(IsMaster, IsReadOnly: boolean; ImageFile:String);
@@ -578,7 +581,10 @@ end;
 procedure TIdeDevice.IdeRead;
 begin
  if Active then with FParams do
-  Case FCtl of
+  if ((FReg.reg_control and 4)=4)
+  then FLsbr:=ide_sts_BSY  // stay at "resetting" state until reg_control.D2=0
+  else
+   Case FCtl of
     ide_data     : if FBufPtr>=0 then
                    begin
                      FLsbr:=byte(FBuf[FBufPtr]);
@@ -596,13 +602,28 @@ begin
     ide_head     : FLsbr:=FReg.reg_head;
     ide_status, ide_astatus : FLsbr:=FReg.reg_status
     else raise Exception.CreateFmt('IdeRead: not supported register address: %d', [FCtl]);
-  end;
+   end;
 end;
 
 procedure TIdeDevice.IdeWrite;
 begin
   with FParams do
+  begin
+   if Active and ((FReg.reg_control and 4)=4) and (FCtl<>ide_control) then exit;  // stay at "resetting" state until reg_control.D2=0
    Case FCtl of
+    ide_control : if Active then
+                  begin
+                    if ((FReg.reg_control and 4)=0) then
+                    begin
+                      if ((FLsb and 4)=4) then begin
+                        IdeReset();                                               // perform IdeReset on D2 bit front
+                        FReg.reg_status:=ide_sts_BSY;
+                      end
+                      else
+                        FReg.reg_status:=ide_sts_RDY;                             // 
+                    end;
+                    FReg.reg_control:=FLsb;
+                  end;
     ide_data    : if Active and (FBufPtr>=0) then
                   begin
                     byte(FBuf[FBufPtr]):=FLsb;
@@ -625,7 +646,7 @@ begin
     ide_command : if Active then
                   begin
                     FReg.reg_command:=FLsb;
-                    if (FLsb and $FE)=ide_cmd_init then
+                    if (FLsb and $FE)=ide_cmd_reset then
                       IdeReset()
                     else if (FLsb and $FE)=ide_cmd_read then
                       IdeReadSectors()
@@ -653,6 +674,7 @@ begin
                       IdeCommandOk();
                   end;
     else raise Exception.CreateFmt('IdeWrite: not supported register address: %d', [FCtl]);
+   end;
   end;
 end;
 
@@ -1004,141 +1026,11 @@ begin
   end;
 end;
 
-{ TIdeProController }
-
-constructor TIdeProController.Create;
-begin
-  inherited;
-  FOnAccess:=nil;
-  FDevice[HddDeviceMaster]:=nil;
-  FDevice[HddDeviceSlave]:=nil;
-end;
-
-destructor TIdeProController.Destroy;
-begin
-  inherited;
-  if Assigned(FDevice[HddDeviceMaster]) then FDevice[HddDeviceMaster].Free;
-  if Assigned(FDevice[HddDeviceSlave]) then FDevice[HddDeviceSlave].Free;
-end;
-
-procedure TIdeProController.Dev0Access(Sender: TObject; Op: char);
-begin
-  if Assigned(FOnAccess) then
-    FOnAccess(Self, 2, Op);
-end;
-
-procedure TIdeProController.Dev1Access(Sender: TObject; Op: char);
-begin
-  if Assigned(FOnAccess) then
-    FOnAccess(Self, 3, Op);
-end;
-
-function TIdeProController.GetIdeReg(Index: Integer): byte;
-begin
-  Result:=$FF;
-  if Assigned(FDevice[HddDeviceMaster]) and FDevice[HddDeviceMaster].Active then
-    Result:=FDevice[HddDeviceMaster].IdeReg[Index]
-  else if Assigned(FDevice[HddDeviceSlave]) and FDevice[HddDeviceSlave].Active then
-    Result:=FDevice[HddDeviceSlave].IdeReg[Index];
-end;
-
-function TIdeProController.GetImageFile(Index: Integer): String;
-begin
-  if Assigned(FDevice[Index and 1]) then
-    Result:=FDevice[Index and 1].ImgFile
-  else
-    Result:='';
-end;
-
-function TIdeProController.GetImageRO(Index: Integer): boolean;
-begin
-  if Assigned(FDevice[Index and 1]) then
-    Result:=FDevice[Index and 1].ImgRO
-  else
-    Result:=False;
-end;
-
-procedure TIdeProController.ReadFromStream(Stream: TStream);
-begin
-;
-end;
-
-procedure TIdeProController.Reset;
-begin
-  if Assigned(FDevice[HddDeviceMaster]) then FDevice[HddDeviceMaster].IdeReset;
-  if Assigned(FDevice[HddDeviceSlave]) then FDevice[HddDeviceSlave].IdeReset;
-end;
-
-procedure TIdeProController.SaveToStream(Stream: TStream);
-begin
-;
-end;
-
-procedure TIdeProController.SetIdeReg(Index: Integer; const Value: byte);
-begin
-  if Assigned(FDevice[HddDeviceMaster]) then
-    FDevice[HddDeviceMaster].IdeReg[Index]:=Value;
-  if Assigned(FDevice[HddDeviceSlave]) then
-    FDevice[HddDeviceSlave].IdeReg[Index]:=Value;
-end;
-
-procedure TIdeProController.SetImageFile(Index: Integer;
-  const Value: String);
-var ss: string;
-begin
-  if Assigned(FDevice[Index and 1]) and
-     (FDevice[Index and 1].ImgFile=Value) then
-    exit;
-  begin
-    if Assigned(FDevice[Index and 1]) then FDevice[Index and 1].Free;
-    FDevice[Index and 1]:=nil;
-    if trim(Value)='' then FImageRO[Index and 1]:=True
-    else
-    try
-      FDevice[Index and 1]:=TIdeDevice.Create((Index and 1)=0, FImageRO[Index and 1], Value);
-    except
-      on E:Exception do
-        begin
-          FDevice[Index and 1]:=nil;
-          ss:=E.Message; OemToCharBuff(@ss[1], @ss[1], Length(ss));
-          MessageBox(0, PChar(Format('IDE Device %d not created: '#13#10#13#10'%s',
-                                     [Index and 1, ss])),
-                     'IdeDevice Error', MB_OK+MB_ICONSTOP);
-        end;
-    end;
-  end;
-end;
-
-procedure TIdeProController.SetImageRO(Index: Integer;
-  const Value: boolean);
-begin
-  FImageRO[Index and 1]:=Value;
-  if Assigned(FDevice[Index and 1]) then
-    FDevice[Index and 1].ImgRO:=Value;
-end;
-
-procedure TIdeProController.SetOnAccess(const Value: TIdeAccess);
-begin
-  FOnAccess := Value;
-  if Assigned(FDevice[HddDeviceMaster]) then
-  begin
-    if Assigned(Value) then
-      FDevice[HddDeviceMaster].OnAccess:=Dev0Access
-    else
-      FDevice[HddDeviceMaster].OnAccess:=nil;
-  end;
-  if Assigned(FDevice[HddDeviceSlave]) then
-  begin
-    if Assigned(Value) then
-      FDevice[HddDeviceSlave].OnAccess:=Dev1Access
-    else
-      FDevice[HddDeviceSlave].OnAccess:=nil;
-  end;
-end;
-
 initialization
   IdeController:=TIdeController.Create;
-  IdeProController:=TIdeProController.Create;
+  IdeProController:=TIdeController.Create;
+  IdeController.DevAccess:=0;
+  IdeProController.DevAccess:=2;
 
 finalization
   IdeController.Free;
