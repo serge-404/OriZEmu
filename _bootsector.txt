@@ -1,0 +1,27 @@
+struct BootSector
+{
+WORD LoadAddress;
+WORD RunAddress;
+WORD LoadSectorCount;
+BYTE SizeDisk; /* 0-5.25", 1-8" */
+BYTE Density; /* 0-FM, 1-MFM */
+BYTE TpI; /* 0-48 TpI, 1-96 TpI, 2-135 TpI */
+BYTE SkewFactor; /* 1-no sector tranlation else = len(_SecTran) */
+BYTE SecSize; /* 0-128, 1-256, 2-512, 3-1024 */
+BYTE InSide; /* 0-single, 1-double */
+WORD SecPerTrack;
+WORD TrkPerDisk;
+/*DPB*/
+WORD SPT; /* logical sector(128) per track */
+BYTE BSH; /* block shift */
+BYTE BLM; /* block shift mask */
+BYTE EXM; /* extent mask EXM=(BLM+1)*128/1024 - 1 - [DSM/256] */
+WORD DSM; /* disk size - 1 */
+WORD DRM; /* dir entry - 1 */
+WORD AL; /* dir allocation */
+WORD CKS; /* dir check table size CKS=(DRM+1)/4; 0 for fixed disk */
+WORD OFS; /* offset, reserved tracks count */
+BYTE CheckSum;
+BYTE SecTran[96];
+};
+
