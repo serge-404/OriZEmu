@@ -21,7 +21,6 @@ SD-card - Ёмулируютс€ 2 варианта:
                  http://n8vem-sbc.pbworks.com/browse/#view=ViewFolder&param=N8VEM%20Schematics
                = совместимо по схеме с MSX MMC-drive V1 (port F762, F763):
                  http://msx.retro8bits.com/sd-mmc-drive.html
-               ¬ железе оба варианта не провер€лись, только в эмул€торе!
                Ёмулируютс€ только SDC карты (non-SDHC, объемом до 1Gb).
 последовательный порт (RS-232) - порты F764,F765 (схема на AtTiny2313).
 Ethernet - эмулируютс€ NE2K-устройства, в железе на примере RTL8019AS
