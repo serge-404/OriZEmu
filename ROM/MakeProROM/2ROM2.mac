@@ -1,0 +1,82 @@
+f839 - запись байта в доп.страницу озу.  вход:  hl - адрес, a - номер доп.  страницы
+     (1-3).  c - записываемый байт.
+
+
+EDB03CD309
+
+6D70:
+21 DF 3B CD-18 F8 21 00-20 11 0D BA-01 07 00 ED
+B0 50 58 01-60 12 21 90-2D 3E 02 D3-09 00 00 00
+
+org 100h
+
+    ld  de,0     ; destination address
+    ld  bc,1260h ; block size
+    ld  hl,2DA0h ; source address   (ROM offset 4D70)
+    ld  a,2      ; ROM page
+    out (09h),a  ; select ROM page to copy from
+; BEG DOUBLED IN BOTH ROM PAGES (2,3) !!!
+    dec a        ; ld  a,1
+    ex  af,af'
+    call MOVE1
+    ld  a,3
+    out (09h),a  ; select ROM page to return
+; END DOUBLED IN BOTH ROM PAGES (2,3) !!!
+
+
+.phase 0F330h
+MOVE1:           ; 0F328h
+    ld  a,(hl)
+    ex  af,af'
+    out (F9h),a
+    ex  af,af'
+    ld  (hl),a
+    xor a         ; ld  a,0
+    ldi           ; (hl)->(de), hl++, de++, bc--
+    out (F9h),a
+    ret po
+    jr  MOVE1  ; if bc<>0
+.dephase
+                  ; 14 bytes
+
+
+org 100h
+
+    ld  hl,0     ; destination address
+    ld  bc,1260h ; block size
+    ld  de,2DA0h ; source address   (ROM offset 4D70)
+    ld  a,2      ; ROM page
+    out (09h),a  ; select ROM page to copy from
+    call MOVE1
+    ld  a,3
+    out (09h),a   ; select ROM page to return
+
+
+.phase 0F328h
+MOVE1:           ; 0F328h
+    ld   a,(de)
+    push bc
+    ld   c,a
+    ld   a,1
+    call F839
+    pop  bc
+    ldi           ; (hl)->(de), hl++, de++, bc--
+    ret po
+    jr  MOVE1     ; if bc<>0
+.dephase
+                  ; 14 bytes
+
+
+
+
+
+dim:
+    db 0    ; RomPage
+    dw 0    ; RomAddr
+    dw 0    ; RomSize
+
+    db 2    ; RomPage
+    dw 0    ; RomAddr
+    dw 0    ; RomSize
+
+    db 0FFh ; end
