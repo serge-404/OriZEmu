@@ -1,0 +1,318 @@
+<html>
+<head>
+<meta http-equiv="Content-Type"	content="text/html; charset=iso-8859-1">
+<META NAME="description"		CONTENT="CP/M Disk Formats as revealed by DPB.COM">
+<meta name="abstract"			content="CP/M Disk Formats as revealed by DPB.COM">
+<meta name="audience"			content="alle">
+<meta name="page-topic"			content="Gesellschaft">
+<meta name="page-type"			content="Private Homepage">
+<META NAME="keywords"			CONTENT="Sharp MZ-700, MZ-700, MZ-7xx, MZ-711, MZ-721, MZ-731, SHARP, MZ-800, MZ-811, MZ-821, MZ-80, MZ-8xx, MZ">
+<META NAME="author"				CONTENT="SUC / UK: Maurice Hawes">
+<META NAME="copyright"			CONTENT="(C) 2003 by SUC / UK">
+<meta name="publisher"			content="www.sharpmz.org">
+<META NAME="CREATED"			CONTENT="20030818">
+<META NAME="CHANGEDBY"			CONTENT="www.sharpmz.org">
+<META NAME="CHANGED"			CONTENT="20030818">
+<META NAME="revisit-after"		CONTENT="30 days">
+<META NAME="robots"				CONTENT="index,follow">
+<META HTTP-EQUIV="expires"		CONTENT="0">
+<META NAME="LANGUAGE"			CONTENT="english, en">
+<TITLE>CP/M Disk Formats as revealed by DPB.COM</TITLE>
+<link rel=stylesheet type="text/css" href="css/format0.css">
+</HEAD>
+<BODY background="images/SHARPbg.gif">
+  <a name="top"></a>
+  <div align="center"> 
+  <table border="1" cellpadding="7" bordercolor="#996633" bgcolor="#F7F7E7">
+    <tr> 
+      <td height="90"> <img src="images/argo.gif" width="45" height="45" align="left" alt="Sharp logo"> 
+        <div align="right" class="head5">CP/M Disk Formats as revealed by DPB.COM&nbsp;</div>
+        <div align="right" class="head3">written by Maurice Hawes / SUC/UK <br>
+          Source: SUC-magazine July 2003, Volume 23 Number 2, pp. 8 - 9&nbsp;&nbsp;</div>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#996633"> <b>Sharp Users Club - General Section - DPB.COM</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b>The Disk Parameter Block</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          In the very early versions of CP/M the format of the floppy-disk drives 
+          ( which at that time were 8&#147; IBM ) is built into the code and is 
+          difficult to change. But in CP/M 2.2 and later versions of CP/M the 
+          details of the disk format are held in a table known as the 'Disk Parameter 
+          Block'.</p>
+        <p>In CP/M 2.2 the 'Disk Parameter Block' consists of 15 bytes, but in 
+          some of the very late versions of CP/M ( such as 'CP/M PLUS' ) two further 
+          bytes are added to allow for 'Logical Sectors' larger than 128 Bytes.</p>
+        <p>As far as early Sharp MZ-computers are concerned, it is sufficient 
+          to consider the contents of the 15-byte Disk Parameter Block in CP/M 
+          2.2:-<br>
+          <br>
+        </p>
+        <table border="1" cellpadding="5" bordercolor="#996633">
+          <tr bordercolor="#996633"> 
+            <td>Byte Number(s)</td>
+            <td>Name of Field</td>
+            <td>Information Held</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>00 - 01</td>
+            <td>SPT</td>
+            <td>No. of Logical ( 128-byte ) Sectors per Logical Track</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>02</td>
+            <td><a href="#bshblm">BSH</a></td>
+            <td>Block Shift - Block Size is given by 128 * 2<sup>(BSH)</sup></td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>03</td>
+            <td><a href="#bshblm">BLM</a></td>
+            <td>Block Mask - Block Size is given by 128 * (BLM +1)</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>04</td>
+            <td>EXM</td>
+            <td>Extent Mask ( <a href="#exm">see opposite</a> )</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>05 - 06</td>
+            <td>DSM</td>
+            <td>Highest Block Number ( <a href="#dsm">see opposite</a> )</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>07 - 08</td>
+            <td>DRM</td>
+            <td>Highest Directory Entry Number ( <a href="#drm">see opposite</a> 
+              )</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>09 - 10</td>
+            <td>AL0 - AL1</td>
+            <td>16-bit Directory Allocation Pattern ( <a href="#al0al1">see opposite</a> 
+              )</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>11 - 12</td>
+            <td>CKS</td>
+            <td>Directory Check Sum</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>13 - 14</td>
+            <td>OFS</td>
+            <td>No. of reserved tracks ( <a href="#ofs">see opposite</a> )</td>
+          </tr>
+        </table>
+        <br>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b>DPB.COM</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          The CP/M 'DPB.COM' locates this table and lists all the values except 
+          CKS on the screen. Typical displays, for the 5.25&quot; Crystal and 
+          M-T versions of CP/M 2.2 for the MZ-80K and MZ-80B respectively, are 
+          as follows:</p>
+        <table border="1" cellpadding="5" bordercolor="#996633">
+          <tr bordercolor="#996633"> 
+            <td>( Parameter )</td>
+            <td>( MZ-80K display )</td>
+            <td>( MZ-80B display )</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Sectors per Track</td>
+            <td>16</td>
+            <td>80</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Block Shift ( BSH )</td>
+            <td>3</td>
+            <td> 4</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Block Mask ( BLM )</td>
+            <td>7</td>
+            <td> 15</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Extent Mask ( EXM )</td>
+            <td>1</td>
+            <td>0</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Total Blocks ( DSM )</td>
+            <td>129</td>
+            <td>169</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Directory Entries ( DRM )</td>
+            <td>63</td>
+            <td>127</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Allocation 0 ( AL0 )</td>
+            <td>C0</td>
+            <td>C0</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Allocation 1 ( AL1 )</td>
+            <td>0</td>
+            <td>0</td>
+          </tr>
+          <tr bordercolor="#F7EBBD"> 
+            <td>Cylinder Offset ( OFS )</td>
+            <td>5</td>
+            <td>1</td>
+          </tr>
+        </table>
+        <p>As shown on the <a href="#npage">opposite page</a>, care has to be 
+          taken when interpreting many of the values in displays such as those 
+          illustrated above. <br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#996633"> <b><a name="npage"></a>NOTES ON INTERPRETING 
+        THE DPB.COM DISPLAY</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b>Sectors Per Track</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          This may be used to find the capacity of a disk - but the calculation 
+          must allow for the fact that in some cases a 'Logical Track' is limited 
+          to <b>ONE SIDE</b> of a disk, but in other cases it extends over <b>BOTH 
+          SIDES</b> of a disk.</p>
+        <p>For example in Xtal's '35-track' CP/M for the MZ-80K a 'Logical Track' 
+          is limited to ONE side of the disk; there are therefore 35 'Logical 
+          tracks' on each side of a disk, and 70 'Logical Tracks' on the disk 
+          as a whole.<br>
+          The capacity of a disk is therefore<br>
+          128 * 16 * 70 = 143,360 Bytes ( 140K ).</p>
+        <p>But in M-T's '35-track' CP/M 2.2 for the MZ-80B a 'Logical Track' extends 
+          over BOTH sides of a disk; there are therefore 35 'Logical Tracks' on 
+          the whole of a disk, and the disk capacity is<br>
+          128 * 80 * 35 = 358,400 ( 350K ).<br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b><a name="bshblm"></a>BSH & BLM</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          <b>Either one of these parameters</b> may be used to calculate the CP/M 
+          block size. For example in Crystal's MZ-80K CP/M 2.2, BSH gives 128 
+          * 23 and BLM gives 128 * (7 + 1), both = 1024 ( 1K ); whereas in Microtechnology's 
+          MZ-80B CP/M 2.2.2.15 similar calculations give the block size as 128 
+          * 24 and 128 * (15 + 1), both = 2048 ( 2K ).<br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b><a name="exm"></a>EXM</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          Large CP/M files are divided into EXTENTS of 16K. In early versions 
+          of CP/M 'Logical and 'Physical' Extents were both 16K; but in CP/M 2.2 
+          and later a 'Logical' extent is 16K but a 'Physical' extent can be 16K, 
+          32K, 64K, 128K or 256K, and this is indicated by setting EXM to either 
+          0, 1, 3, 7, or 15 ( i.e. <b>EXM is set to 1 less than the number of 
+          'Logical' extents in a 'Physical' extent</b> ).<br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b><a name="dsm"></a>DSM ( 2 bytes )</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          This indicates the HIGHEST PERMISSIBLE BLOCK NUMBER; numbering starts 
+          at 0, so the <b>TOTAL NUMBER OF BLOCKS is 1 more than the value shown</b>.<br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b><a name="drm"></a>DRM ( 2 bytes )</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          This indicates the HIGHEST PERMISSIBLE DIRECTORY NUMBER; numbering starts 
+          at 0 so the <b>MAXIMUM NUMBER OF DIRECTORY ENTRIES is 1 more than the 
+          value shown</b>.<br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b><a name="al0al1"></a>AL0& AL1</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          These parameters, taken <b>BITWISE</b>, indicate which of the first 
+          16 CP/M blocks ( numbered 00 - 15 ) are allocated to the Directory. 
+          For example:-</p>
+        <p>$80 00 = <b>10000000 00000000</b> i.e. the Directory is allocated <b>BLOCK 
+          00 only</b><br>
+          $C0 00= <b>11000000 00000000</b> i.e. the Directory is allocated <b>BLOCKS 
+          00 &amp; 01</b><br>
+          <br>
+        </p>
+      </td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"><b><a name="ofs"></a>OFS</b></td>
+    </tr>
+    <tr> 
+      <td bordercolor="#F7EBBD"> 
+        <p><br>
+          This shows the <b>location of CP/M BLOCK 00</b> and also, by implication, 
+          <b>how many tracks are reserved for bootstrap &amp; system files.</b> 
+          Thus, '5' on the MZ-80K shows that Block 00 is at the start of track 
+          5, and Tracks 0 - 4 are used for bootstrap &amp; system files; whereas 
+          '1' on the MZ-80B shows that Block 00 is at the start of Track 1, and 
+          Track 0 is used for bootstrap &amp; system files. </p>
+        <p><b>The full implications of the Disk Parameter Block for specific CP/M 
+          and PCP/M systems on various Sharp MZ-machines are discussed in the 
+          individual <a href="succpminfo07.htm">MZ-80K</a> / <a href="succpminfo08.htm">MZ-80B</a> 
+          / <a href="succpminfo09.htm">MZ-80A</a> / <a href="succpminfo10.htm">MZ-700 
+          / MZ-800</a> / MZ-3500 sections of this issue.</b><br>
+          <br>
+        </p>
+      </td>
+    </tr>
+  </table>
+  </div>
+  <p class="afooter"><br>
+    <a href="#top"><img src="images/top.gif" border="0" alt="Go to the top of this page" width="10" height="11"></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <a href="succpminfo05.htm"><img src="images/backw.gif" border="0" alt="Back to CP/M on Sharps part II" width="11" height="10"></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <a href="succpminfo07.htm"><img src="images/forw.gif" border="0" alt="Get next page - CP/M on the MZ-80K - DPB" width="11" height="10"></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <a href="http://www.sharpmz.org/index.html" target="_top"><img src="images/home.gif" border="0" alt="Home" width="13" height="14"></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <br>
+    <br>
+    last updated August 18, 2003<br>
+    <img src="images/copyright.gif" align="absbottom" width="12" height="12"> 
+    SUC / UK: Maurice Hawes <br>
+  </p>
+</BODY>
+</HTML>

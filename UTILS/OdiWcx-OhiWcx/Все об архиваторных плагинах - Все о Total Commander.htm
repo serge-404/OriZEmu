@@ -1,0 +1,295 @@
+<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<title>Все об архиваторных плагинах - Все о Total Commander</title>
+<meta name="description" content="Все о Total Commander на русском языке. Total Commander это самый популярный и самый настраиваемый файловый менеджер в мире. Статьи, настройка, плагины, иконки, советы, форум и многое другое об этой замечательной программе вы найдете на сайте Все о Total Commander">
+<meta name="keywords" content="Total Commander, Total Comander, файловый менеджер, totalcmd, Windows Commander, wincmd, плагин, плагины, plugin, addon, иконки, настройка, форум, beta, скачать, download, руссификатор, русификатор, wincommander, тотал коммандер, архиватор, winrar, zip">
+<meta name="robots" content="all">
+<link rel="stylesheet" type="text/css" href="/styles.css">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="alternate" type="application/rss+xml" title="Все о Total Commander" href="http://wincmd.ru/rss.xml" />
+</head>
+<body>
+<table width="100%" cellpadding="0" cellspacing="0" background="/images/back_top.png" style="background-repeat:repeat-x;"><tr>
+<td valign="top" width="100%"><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" width="295" height="60">
+<param name="movie" value="/images/wincmd.swf">
+<param name="quality" value="high">
+<embed src="/images/wincmd.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" width="295" height="60"></embed></object>
+<div><img src="/images/1x1.gif" width="280" height="1" border=0 alt="Total Commander" title="Total Commander"></div>
+</td>
+<td align="right" height=60></td><td width=20>&nbsp;</td>
+<td valign="top"><img src="http://counter.rambler.ru/top100.cnt?223700" width=1 height=1 border=0></td></tr></table>
+<table width="100%" cellpadding="0" cellspacing="0" ><tr>
+
+
+<td valign="top" align="center" bgcolor="#eaeaea" width="190">
+
+
+<p id="menu">
+<a href="http://www.totalcmd.net/">Switch to English</a><br>
+<a href="/">Начальная</a><br>
+<a href="/plugring/totalcmd.html">Скачать Total Commander</a><br>
+<a href="http://forum.wincmd.ru/">Форум</a><br><br>
+
+<b>Плагины</b><br>
+<a href="/directory/fsplugin.html">Системные / System</a><br>
+<a href="/directory/lister.html">Просмотр / Lister</a><br>
+<a href="/directory/packer.html">Архиваторные / Packer</a><br>
+<a href="/directory/content.html">Контентные / Content</a><br>
+<a href="/directory/multiarc.html">MultiArc и дополнения</a><br>
+<a href="/directory/far2wc.html">Far2wc и дополнения</a><br>
+<a href="/directory/synplus.html">SynPlus</a><br><br>
+<b>Прочее</b><br>
+<a href="/directory/util.html">Утилиты для TC</a><br>
+<a href="/directory/lang.html">Языковые файлы</a><br>
+<a href="/directory/developer.html">Разработчикам плагинов</a><br>
+<a href="/directory/iconpack.html">Иконки</a><br>
+<a href="/icons.php">Иконки 2</a><br>
+<a href="/directory/editors.html">Текстовые редакторы</a><br>
+<a href="/directory/other.html">Разное</a><br><br>
+
+<b>Информация</b><br>
+<a href="/faq.php">FAQ</a><br>
+<a href="/articles.php">Статьи</a><br>
+<a href="/coolhints.php">Крутые советы</a><br>
+<a href="/links.php">Ссылки</a><br>
+<a href="/subscribe.php">Эхоконференция</a><br>
+<a href="/addplugin.php">Добавить плагин</a>
+</p>
+<br><br>
+
+<form method=GET action="/search.php">
+<center><input type="text" name="s" value="" size="10"><input type="submit" value="Найти"></center>
+</form>
+
+<br>
+
+
+
+
+</td>
+<td valign="top" bgcolor="#ffffff"><div><img src="/images/1x1.gif" width="569" height="1" border=0 alt="Total Commander"></div>
+
+
+<h3>Все об архиваторных плагинах</h3>
+<p style="text-align:right;"><b>Автор: Andrey Pyasetskiy</b><br>
+http://wincmd.ru</p>
+<p>В этой статье я хотел бы раскрыть все аспекты установки и работы архиваторных плагинов. Вполне возможно, что-то новое для себя в ней найдут не только пользователи-новички, но и те, кто установил не один плагин на свой компьютер.</p>
+<p>Архиваторные плагины предназначены для поддержки различных типов архиваторов в Total Commander, которые не включены в стандартную настройку (а такие архиваторы как RAR, ACE, LHA, ARJ, US2 вы можете подключить без помощи плагинов, не говоря уже о ZIP-е, с которым Total Commander работает, как с родным). Это может быть полезным, если вам необходимо работать с такими архивами, как старым, но когда то популярным HA, быстроразвивающимся и ныне популярным 7Zip, или другими, более экзотическими форматами (Bzip2, Archangel, Ppmd, UFA и т.д.)</p>
+
+<p>Однако, на практике с их помощью реализуется поддержка работы Total Commander с такими типами файлов как chm (файл справки), msi (инсталляционный пакет), icl (библиотека иконок), dll (динамическая библиотека) и т.д., то есть, как бы не совсем с архивами. Такие плагины можно называют псевдоархиваторами. Все существующие архиваторные плагины вы можете найти у нас <a href="http://wincmd.ru/plugring.php?type=packer">в каталоге</a></p> 
+
+<p><b>Установка</b></p>
+<p>Расширение архиваторного плагина (packer plugin) - wcx. </p>
+
+<p>Чтобы установить архиваторный плагин, распакуйте его в отдельную папку. Обычно для плагинов создают отдельный подкаталог Plugins в папке, куда установлен Total Commander. Т.е. плагин chmdir, например, распакуем в каталог C:\Totalcmd\Plugins\Chmdir\</p> 
+
+<p>Теперь открываем Настройки Total Commander, раздел отвечающий за настройку архивов.</p>
+
+<center><img src="http://wincmd.ru/images/articles/a_install_packer_2.gif" width="540" height="444" border="0" alt=""></center>
+
+<p>Нажимаем на кнопку Configure packer extension WCXs - открывается диалог редактирования ассоциаций архиваторных плагинов.</p>
+
+<center><img src="http://wincmd.ru/images/articles/a_install_packer_1.gif" width="457" height="196" border="0" alt=""></center>
+
+<p>В окошке вводим расширение, с которым необходимо проассоциировать архиваторный плагин. О том, с каким расширением нужно проассоциировать плагин, можно узнать из readme-файла плагина, если это конечно не понятно. С одним плагином можно проассоциировать несколько расширений (ISO - iso, nrg, img).</p>
+
+<p>Далее нажимаем на кнопочку New type (если конечно же этот плагин уже не ассоциировался ранее с другим расширением, тогда его можно будет просто выбрать из списка) и выбираем файл плагина wcx.</p>
+
+<blockquote><i>Если перед тем, как открыть диалог настройки плагина в одной из панелей открыть папку плагина и сделать ее активной, то эта директория откроется по умолчанию в браузере файлов после нажатия New type, что избавит вас от поиска необходимой директории в неудобном проводнике...</i></blockquote>
+
+<p><b>Экспертная настройка</b></p>
+
+<p>Теперь хочу обратить ваше внимание на число, которое стоит перед плагином. Оно определяет поведение и возможную функциональность архиваторного плагина. Обычно авторы плагинов заботятся об этом сами, и лучше это число не менять, но иногда приходится редактировать его под свои вкусы. Лучше этого не делать, если вы точно не знаете реальную функциональность плагина.</p>
+
+<p>Это число является суммой определенных констант, определяющих свойства и возможности плагина. Вот они:</p>
+
+<p>1=Плагин может создавать новые архивы
+<br>2=Плагин может изменять существующие архивы
+<br>4=В архиве может быть несколько файлов
+<br>8=Можно удалять файлы из архива
+<br>16=Плагин поддерживает диалог свойств
+<br>32=Плагин поддерживает упаковку в памяти
+<br>64=Можно определять тип архива по содержимому
+<br>128=Можно искать текст в архивах
+<br>256=Показывать как обыкновенные файлы (не показывать иконку архивного файла), входить по Ctrl+PgDn а не по Enter</p>
+<p>Так, например, для плагина chmdir необходимо поставить число 388 (4+128+256=388), то есть в chm-файле естественно может быть много html-файлов (4), нам возможно понадобится осуществлять поиск текста внутри этих файлов (128), а по Enter-у, конечно же, удобнее открывать сам файл справки, а входить в него по Ctrl+PgDn (256). В последней версии Chmdir, справедливости ради, надо сказать, что эту проблему устранили и правильная константа устанавливается автоматически.</p>
+
+<p><b>Плагин установлен!</b></p>
+
+<p>Итак, если вы все сделали правильно, то все должно уже работать. Если плагин поддерживает упаковку, то теперь его расширение доступно в диалоге архивации, если же не поддерживает, то можно просто входить в соответствующие типы файлов по Ctrl+PgDn</p>
+
+<center><img src="http://wincmd.ru/images/articles/a_install_packer_3.gif" width="496" height="203" border="0" alt=""></center>
+
+<p>Также не забывайте, что многие архиваторные плагины имеют собственные опции, для установки которых необходимо нажать кнопочку Configure</p>
+
+<center><img src="http://wincmd.ru/images/articles/a_install_packer_4.gif" width="272" height="315" border="0" alt=""></center>
+
+<p>Особняком среди архиваторных плагинов стоят <a href="http://wincmd.ru/plugring/multiarc.html">Multiarc</a> и <a href="http://wincmd.ru/plugring/far2wc.html">Far2wc</a>. О их настройках я расскажу в следующих своих статьях.</p>
+
+<h2>Комментарии пользователей<a name="comments"></a></h2>
+<script language="JavaScript">
+<!--
+function pasteN(uName) {
+	document.all.cookoo.innerHTML = document.all.cookoo.innerHTML + "2" + uName
+}
+//-->
+</script>
+
+<table width=90% border=1 align=center cellspacing=0 cellpadding=5 bordercolor=#CCCCCC>
+
+<tr class="list1">
+	<td valign=top><a href='javascript:pasteN("const");'>const</a><br>
+		</td>
+	<td valign=top><small><b> </b> 9.08.2005 - 03:39</small><br>Вот недавно для себя открыл тотал и очень сильно огорчился когда не смог настроить мультиарх просто не доходит до меня чтото чтоли если кто знает как этот плагин настроить сообщите пож. <br />
+с другими плагинами всё вроде понятно и они работают заранее спасибо</td>
+</tr>
+
+
+<tr class="list2">
+	<td valign=top><a href='javascript:pasteN("NOX");'>NOX</a><br>
+		</td>
+	<td valign=top><small><b>Все об архиваторных плагинах </b> 23.10.2004 - 09:23</small><br>Liudi au! Uchite Anglijskij (JA uze douchilsia %-) ) , i chitajte readme i help. a zamiechatelnyj 7-zip tut:  <a href="http://www.7-zip.org" target="_blank">http://www.7-zip.org</a><br />
+<br />
+On freeware i podkliuchaetsia k TotalCmd kak plugin plugina multiarc (posliedniaja versia 1.1.2) [ o  zagnul ] t.e.<br />
+<br />
+7-zip.exe -> multiarc.wcx -> TotalCmd.exe <br />
+<br />
+S ostalnym razbieriotes' !!!</td>
+</tr>
+
+
+<tr class="list1">
+	<td valign=top><a href='javascript:pasteN("PKS");'>PKS</a><br>
+		</td>
+	<td valign=top><small><b>Все об архиваторных плагинах </b> 17.10.2004 - 06:02</small><br>Ну вы, блин, даёте...<br />
+Плагин для 7z - MultiArc.<br />
+Для этого надо просто на скрины поглядеть.</td>
+</tr>
+
+
+<tr class="list2">
+	<td valign=top><a href='javascript:pasteN("vu");'>vu</a><br>
+		</td>
+	<td valign=top><small><b>Все об архиваторных плагинах </b> 1.09.2004 - 04:19</small><br>При попытке войти в архив 7z (хоть Enter, хоть PgDown) выдает:<br />
+Неизвестный формат. Или ошибка в архиве...</td>
+</tr>
+
+
+<tr class="list1">
+	<td valign=top><a href='javascript:pasteN("vu");'>vu</a><br>
+		</td>
+	<td valign=top><small><b>Все об архиваторных плагинах </b> 1.09.2004 - 03:53</small><br>про 7z вроде, написано, а не работает...</td>
+</tr>
+
+
+</table>
+
+
+	<center><b><a href="/comments.php?article=packerplugins">Все комментарии (14)</a></b></center>
+	
+
+
+
+<form method=POST action="/comment.php">
+<table align=center>
+<tr>
+	<td>&nbsp;</td>
+	<td><b>Добавить ваш комментарий</b></td>
+</tr>
+<tr>
+	<td>Ваше имя:*</td>
+	<td><input type="text" name="name" value=""></td>
+</tr>
+<tr>
+	<td>E-mail:</td>
+	<td><input type="text" name="email" value=""></td>
+</tr>
+<tr>
+	<td>Ваш комментарий:<br><b><small>Сообщения содержащие крэки<br>будут удаляться</small></b></td>
+	<td><textarea name="comments" rows="8" cols="50" id="cookoo"></textarea></td>
+</tr>
+	<td>Контрольная сумма: <b>0 + 5 =</b></td>
+	<td><input type="text" name="kontrolsum" value=""></td>
+</tr>
+
+<tr>
+	<td>
+<input type="hidden" name="id" value="packerplugins">
+<input type="hidden" name="category" value="article">
+<input type="hidden" name="filename" value="Все об архиваторных плагинах">
+<input type="hidden" name="layer" value="faae7d997103f9d75e40e7940ac0a131">
+<input type="hidden" name="yourip" value="81.30.51.251">
+
+	
+	</td>
+	<td>
+	<input type="submit" value="Отправить"><input type="reset" value="Сбросить">
+	</td>
+</tr>
+
+</table>
+
+</form>
+
+
+
+
+
+</td></tr></table>
+<table width=100% cellpadding=0 cellspacing=0><tr><td width=190 valign=top>
+<h2>Рейтинги</h2>
+
+<center>
+<noindex>
+<script language="JavaScript"><!--
+d=document;var a='';a+=';r='+escape(d.referrer)
+js=10//--></script><script language="JavaScript1.1"><!--
+a+=';j='+navigator.javaEnabled()
+js=11//--></script><script language="JavaScript1.2"><!--
+s=screen;a+=';s='+s.width+'*'+s.height
+a+=';d='+(s.colorDepth?s.colorDepth:s.pixelDepth)
+js=12//--></script><script language="JavaScript1.3"><!--
+js=13//--></script>
+<a href="#" onMouseOver="window.status='http://top.mail.ru/jump?from=146286';return true">
+<script language="JavaScript"><!--
+d.write('<img src="http://top.list.ru/counter'+
+'?id=146286;t=52;js='+js+a+';rand='+Math.random()+
+'" alt="Рейтинг@Mail.ru"'+' border=0 height=31 width=88>')
+if(11<js)d.write('<'+'!-- ')//--></script><noscript><img
+src="http://top.list.ru/counter?js=na;id=146286;t=52"
+border=0 height=31 width=88
+alt="Рейтинг@Mail.ru"></noscript><script language="JavaScript"><!--
+if(11<js)d.write('--'+'>')//--></script></a>
+<br>
+<a href="#" onMouseOver="window.status='http://top100.rambler.ru/top100/';return true"><img src="http://top100-images.rambler.ru/top100/banner-88x31-rambler-gray2.gif" alt="Ramblers Top100" width=88 height=31 border=0></a>
+<br>
+
+<img src="http://www.yandex.ru/cycounter?wincmd.ru" width=88 height=31 border=0>
+<br>
+<script language="JavaScript"><!--
+document.write('<img src="http://counter.yadro.ru/hit?t16.3;r'+
+escape(document.referrer)+((typeof(screen)=='undefined')?'':
+';s'+screen.width+'*'+screen.height+'*'+(screen.colorDepth?
+screen.colorDepth:screen.pixelDepth))+';'+Math.random()+
+'" alt="rax.ru: показано число хитов за 24 часа, посетителей за 24 часа и за сегодн\я" '+
+'border=0 width=88 height=31>')//--></script>
+</noindex>
+</center>
+
+
+
+
+<img src="/images/1x1.gif" width=190 height=1 border=0>
+
+</td><td bgcolor=#ffffff valign=top>
+<h2>&nbsp;</h2>
+<br>
+
+	
+<center><br><br>
+<div class="fav"><b>Все о Total Commander &copy; 2001-2005</b> <br>Идея,  программирование, дизайн и поддержка, &copy; <a href="mailto:webmaster@wincmd.ru">Андрей Пясецкий</a><br>
+</div></center>
+</td></tr></table>
+</body></html>
