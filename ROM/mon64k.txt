@@ -1,0 +1,39 @@
+copy /b FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + M34zrk.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + FF.bin + M34zms.bin + FF.bin + FF.bin + TEST256.BIN + M35zrkd.bin + TestZ80.BIN + M35zrkh.bin + M35zmsd.bin + M35zmsh.bin mon64k.bin
+
+
+DipSW   File  
+1=OFF
+
+00000   FF.bin
+00001   FF.bin
+00010   FF.bin
+00011   FF.bin
+00100   FF.bin
+00101   FF.bin
+00110   FF.bin
+00111   FF.bin
+01000   FF.bin
+01001   FF.bin
+01010   FF.bin
+01011   FF.bin
+01100   FF.bin
+01101   FF.bin
+01110   FF.bin
+01111   M34zrk.bin 
+10000   FF.bin
+10001   FF.bin
+10010   FF.bin
+10011   FF.bin
+10100   FF.bin
+10101   FF.bin
+10110   FF.bin
+10111   M34zms.bin
+11000   FF.bin
+11001   FF.bin
+11010   TEST256.BIN
+11011   M35zrkd.bin  
+11100   TestZ80.BIN 
+11101   M35zrkh.bin
+11110   M35zmsd.bin
+11111   M35zmsh.bin 
+ 

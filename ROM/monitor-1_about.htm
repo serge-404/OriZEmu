@@ -1,0 +1,743 @@
+
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1251">
+<META NAME="Generator" CONTENT="Microsoft Word 97">
+<TITLE>Програмное обеспечение.</TITLE>
+</HEAD>
+<BODY LINK="Blue" bgcolor="#AFFEE0" vlink="Navy">
+
+
+<table width="100%" border="1" align="center">
+  <tr> 
+    <td align="center" bgcolor="#D3D913" width="70%"> 
+      <div align="center"><b><font size="+1" face="Courier New, Courier, mono">Описание 
+        компьютера <i>Орион-128</i></font></b></div>
+    </td>
+    <td align="right" bgcolor="#EDC4B6" width="30%"> 
+      <div align="center"><font size="+1"><i><font face="Courier New, Courier, mono">Журнал 
+        РАДИО</font></i></font></div>
+    </td>
+  </tr>
+</table>
+
+<P ALIGN="JUSTIFY"><img src="Image4.gif" width=335 height=68 align="left"><B><FONT FACE="Verdana" SIZE=2>ПРОГРАММНОЕ 
+  ОБЕСПЕЧЕНИЕ <br>
+  ПЕРСОНАЛЬНОГО РАДИОЛЮБИТЕЛЬСКОГО <br>
+  КОМПЬЮТЕРА “ОРИОН -128”</font></B><FONT FACE="Verdana" SIZE=2> </FONT></P>
+<FONT FACE="Verdana" SIZE=2> 
+<P ALIGN="JUSTIFY">&nbsp;</P>
+<P ALIGN="JUSTIFY">По структуре программное обеспечение радиолюбительского компьютера 
+  (РК) “Орион-128” аналогично “Микро-80” и “Радио-86РК”. Отличительная особенность 
+  компьютера — двухстраничная система построения памяти в базовом варианте и четырехстраничная 
+  — в расширенном.</P>
+<P ALIGN="JUSTIFY">Рассмотрим структуру основной — 0 страницы памяти. Как видно 
+  из рис. 1, в самых старших адресах памяти располагается управляющая программа 
+  МОНИТОР. Он занимает адресное пространство 0F800 — 0FFFFH и размещен в ПЗУ.</P>
+Область ОЗУ с адресами 0F400 — 0F7FFH отведена под дешифрацию портов ввода-вывода, 
+так как микропроцессор адресуется к портам ввода-вывода как к ячейкам памяти. 
+<DIR> 
+  <blockquote> 
+    <blockquote> 
+      <p>ТАБЛИЦА АДРЕСАЦИИ ПОРТОВ ВВОДА-ВЫВОДА<br>
+        0F400H — порт клавиатуры<br>
+        0F500H — порт пользователя № 1<br>
+        0F600H — порт пользователя № 2<br>
+        0F700H — порт платы расширения<br>
+        0F800H — системный порт № 1 (только для записи)<br>
+        0F900H —&#9;” № 2 ( ” )<br>
+        0FA00H — ”&#9; № 3 ( ” )<br>
+        0FB00H — ”&#9; № 4 ( ” )</p>
+    </blockquote>
+  </blockquote>
+</DIR>
+</FONT> 
+<P ALIGN="JUSTIFY"><IMG SRC="Image5.gif" WIDTH=333 HEIGHT=352 align="left"></P>
+<FONT FACE="Verdana" SIZE=2> 
+<P ALIGN="JUSTIFY">Область с адресами 0F000 — 0F3FFH (1 Кбайт) используется как 
+  служебное ОЗУ, здесь размещаются служебные ячейки и рабочий стек МОНИТОРА (0F3C0 
+  — 0F3FFH). Адреса 0F000H — 0F2FFH занимает знакогенератор, который разворачивается 
+  при инициализации МОНИТОРа.</P>
+<P ALIGN="JUSTIFY">Далее размещается ОЗУ дисплея. Оно занимает адресное пространство 
+  0С000 — 0EFFFH, т. е. 12 Кбайт или 384X256 точек разложения. Остальные 48 Кбайт 
+  памяти отведены пользователю.</P>
+<P ALIGN="JUSTIFY">В дополнительных страницах верхние (0F000 — 0FFFFH) 4 Кбайта 
+  ОЗУ не используются и пользователю недоступны. При переключении страниц эта 
+  область памяти не переключается, что позволяет иметь доступ к МОНИТОРу и служебной 
+  области ОЗУ из любой страницы.</P>
+<P ALIGN="JUSTIFY">В дополнительной странице памяти — 1 находится область ОЗУ, 
+  содержащая информацию о цвете экрана дисплея. Она занимает, как и ОЗУ экрана, 
+  тоже 12 Кбайт. Такой принцип распределения атрибутов цвета изображения позволяет 
+  не уменьшать разрешающую способность экрана при переходе в цветной режим отображения 
+  информации, а также имитировать спрайтовую структуру. Остальные 48 Кбайт ОЗУ 
+  дополнительной страницы могут быть использованы, к примеру, как “квазидиск”. 
+  Следует заметить, что если цветной режим дисплея отключен, то в дополнительной 
+  странице пользователю отводятся все 60 Кбайт памяти.</P>
+</FONT> 
+<P ALIGN="JUSTIFY"><FONT FACE="Verdana" SIZE=2>По адресам 0F800H — 0FB00H находятся 
+  системные порты. Рассмотрим их структуру более подробно. Системные порты доступны 
+  только для записи</font><FONT FACE="Verdana" SIZE=2>.</font></P>
+<FONT FACE="Verdana" SIZE=2> 
+<P ALIGN="JUSTIFY">Системный порт1 (адрес 0F800H), — управление цветным режимом.</P>
+</FONT> 
+<blockquote> 
+  <p><FONT FACE="Verdana" SIZE=2>D0 0 — палитра №1 1 — палитра №2<br>
+    D1 0 — режим 1 —16 цветов 1 — режим 2 — 4 цвета<br>
+    D2 0 — монохромный режим 1 — цветной режим </FONT></p>
+</blockquote>
+<FONT FACE="Verdana" SIZE=2> 
+<DIR> 
+  <DIR> 
+    <DIR> Бит D2 — монохромный режим На цветном мониторе информация отображается 
+      зеленым цветом на черном фоне, если включена палитра №1, и желтым на голубом 
+      фоне — палитра №2.<br>
+      Бит D1 — режим 1 (D1 —0) — 16 цветов (групповое кодирование). В этом режиме 
+      на восемь смежных точек изображения выделяется общий байт управления цветом, 
+      который размещается в дополнительной странице памяти I — при этом возможно 
+      отображение 16 цветов изображения и 16 цветов фона в режиме 2 (D1 = 1) каждому 
+      элементу отображения (пикселю) можно присвоить 4 цвета в одной из двух палитр.<br>
+      Бит D0 — палитра 1 (D=0), палитра 2 (D=1) (только в 4-цветном режиме).</DIR>
+  </DIR>
+</DIR>
+<P ALIGN="JUSTIFY">Перечислим все возможные комбинации состояний системного порта 
+  1.</P>
+</FONT> 
+<blockquote> 
+  <blockquote>
+    <p><FONT FACE="Verdana" SIZE=2>00 — монохромный режим, &#9;палитра 1 (зеленый/черный) 
+      <br>
+      01 — &#9;---------------//----------- &#9;&#9;&#9;палитра 2 (желтый/голубой) 
+      <br>
+      02 — гашение изображения</FONT><FONT FACE="Verdana" SIZE=2> <br>
+      03 — &#9;&#9;----------------//-------------------</FONT><FONT FACE="Verdana" SIZE=2> 
+      <br>
+      04 — 4-цветный режим, &#9;палитра 1<br>
+      05 — &#9;&#9;-----------//----------- &#9;&#9;&#9;палитра 2<br>
+      06 — 16-цветный режим</FONT><FONT FACE="Verdana" SIZE=2> <br>
+      07 — &#9;&#9;----------------//----------------</FONT></p>
+  </blockquote>
+</blockquote>
+<FONT FACE="Verdana" SIZE=2> 
+<P ALIGN="JUSTIFY"><br>
+  Следует помнить, что если в дополнительной странице по адресу 0С000 — 0EFFFH 
+  находится информация, то она будет потеряна при включении цветного (тем более 
+  цветного многоэкранного) режима дисплея.</P>
+<P ALIGN="JUSTIFY">Системный порт 2 (адрес 0F900H) — управление переключением 
+  страниц памяти.</P>
+D1 D0 <br>
+0 &#9;0 — основная страница “0” <br>
+0 &#9;1 — дополнительная страница “1”<br>
+1 &#9;0 — дополнительная страница “2”<br>
+1 &#9;1 — дополнительная страница “3” 
+<P ALIGN="JUSTIFY">В базовой версии компьютера страницы 2 и 3 отсутствуют, поэтому 
+  значения “10” и “11” использовать не следует.</P>
+<P ALIGN="JUSTIFY">Системный порт 3 (адрес 0FA00H) — управление переключением 
+  экранов.</P>
+<P ALIGN="JUSTIFY">При включении компьютера программа МОНИТОР всегда инициализирует 
+  экран из страницы памяти 1, который размещается в ОЗУ по адресам 0С000 — 0EFFFH. 
+  Однако пользователь, изменяя значение системного порта 3, а также начальный 
+  адрес экрана в служебной ячейке, может создать еще три области экрана:</P>
+</FONT> 
+<DIR> 
+  <DIR> <font face="Courier New, Courier, mono" size="2"> 8000— 0AFFFH — экран 
+    2<br>
+    4000—6FFFH — экран 3<br>
+    0000—2FFFH — экран 4 <br>
+    D1 D0</font> <font face="Courier New, Courier, mono" size="2"><br>
+    0 &#9;0 - экран №1 <br>
+    0 &#9;1 - экран №2<br>
+    1 &#9;0 - экран №3<br>
+    1 &#9;1 - экран №4</font></DIR>
+</DIR>
+<FONT FACE="Verdana" SIZE=2> 
+<P ALIGN="JUSTIFY">Промежутки, не заполненные экранными областями 3000 — 3FFFH, 
+  7000 — 7FFFH, ОВООО—OBFFFH, могут быть использованы для размещения программ 
+  пользователя. Многоэкранный режим включения возможен как в монохромном, так 
+  и в любом цветном режиме.</P>
+<P ALIGN="JUSTIFY">Системный порт 4 (адрес 0НВ00Н) — переключение типов дисплея: 
+  графический или символьный (аппаратного исполнения) — в базовом варианте РК 
+  “Орион-128” — не используется.</P>
+<P ALIGN="JUSTIFY">При “холодном” запуске МОНИТОРа или нажатии на кнопку “Сброс” 
+  в системные порты записывается значение — ООН, таким образом устанавливается 
+  следующий режим: монохромное отображение информации, включена нулевая (основная) 
+  страница памяти и инициализирован экран 1.</P>
+<B> 
+<P ALIGN="CENTER">МОНИТОР</P>
+</B> 
+<P ALIGN="JUSTIFY">После включения питания и нажатия кнопки “Сброс” управление 
+  передается программе МОНИТОР. МОНИТОР — единственная резидентная программа, 
+  записанная в ПЗУ и занимающая 2 Кбайта. Коды программы приведены в табл.2. Она 
+  инициализирует программируемые БИС портов, обеспечивает работу клавиатуры, дисплея, 
+  контролирует ввод-вывод информации на внешний накопитель — магнитную ленту.</P>
+<P ALIGN="JUSTIFY">В МОНИТОРе находится и специально упакованный знакогенератор, 
+  который при пуске МОНИТОРа распаковывается и размещается в области служебного 
+  ОЗУ по адресам OFOOO — OF2FFH. Наличие загружаемого знакогенератора позволяет 
+  производить его замену, в том числе и национальные наборы символов, а также 
+  одновременно работать с несколькими знакогенераторами.</P>
+<B> 
+<P ALIGN="CENTER">ДИРЕКТИВЫ МОНИТОРА</P>
+</B> 
+<P ALIGN="JUSTIFY">МОНИТОР поддерживает упрощенный диалог с пользователем, который 
+  вводит с клавиатуры директивы и считывает с экрана дисплея результат их выполнения.</P>
+</FONT> 
+<P ALIGN="JUSTIFY"><FONT FACE="Verdana" SIZE=2>После запуска МОНИТОРа экран телевизора 
+  очищается, в левом верхнем углу появляется надпись “Орион-128”, а под ней — 
+  стрелка “=&gt;”, сообщающая о том, что МОНИТОР находится в управляющем режиме 
+  и готов к вводу директив. Директивы МОНИТОРа однобуквенные и состоят из латинского 
+  символа и одного-двух параметров, представляющих собой шестнадцатиричные числа. 
+  Параметры между собой разделяются запятой. Неверно набранные</font><FONT FACE="Verdana" SIZE=2> 
+  </FONT><FONT FACE="Verdana" SIZE=2>символы исправляются нажатием клавиши “&lt;-” 
+  (“курсор назад”). При этом символ, под которым находится курсор, можно исправить 
+  повторным вводом. Клавишей “—&gt;” курсор можно вернуть в прежнее положение 
+  и продолжать ввод. Выполнение директивы начинается после нажатия на клавишу 
+  (ВК). Если директива и параметры заданы правильно, то начинается ее выполнение, 
+  если нет, на экран выводится знак вопроса. Это признак ошибочного ввода директивы 
+  или некорректного ввода параметров.</font></P>
+<FONT FACE="Verdana" SIZE=2> МОНИТОР выполняет семь директив — директивы просмотра 
+и модификации ячеек памяти, передачи управления программам пользователя, записи 
+— чтения информации на магнитную ленту, включение цветного режима дисплея. Ниже 
+перечислены все директивы и форматы их ввода. 
+<DIR> D(НАЧ.АДР.),(НОМЕР СТР.)(ВК) &#9;— ВЫВОД ДАМПА ПАМЯТИ<br>
+  М(АДРЕС)(ВК)&#9;— МОДИФИКАЦИЯ ЯЧЕЕК ОЗУ<br>
+  G(АДРЕС)(ВК)&#9;— ПЕРЕДАЧА УПРАВЛЕНИЯ ПО АДРЕСУ<br>
+  Z(BK)&#9;— ПЕРЕДАЧА УПРАВЛЕ НИЯ ПО АДРЕСУ 0BFFDH<br>
+  О(НАЧ.АДРЕС),(КОНЕЧ. АДР.)(ВК)&#9;— ВЫВОД НА МАГНИТОФОН<br>
+  I(ВК)&#9;— ВВОД С МАГНИТОФОНА<br>
+  С(БАЙТ ЦВЕТА)(ВК)&#9;— ВКЛЮЧЕНИЕ ЦВЕТНОГО РЕЖИМА ДИСПЛЕЯ.</DIR>
+<P ALIGN="JUSTIFY">Рассмотрим подробнее особенности работы директив МОНИТОРа.</P>
+<P ALIGN="JUSTIFY"><b>Директива “D”</b> — выводит на экран дисплея содержимое 
+  памяти в шестнадцатиричном формате. Для работы директивы достаточно вводить 
+  только начальный адрес. После нажатия клавиши ВК на экран выводится блок памяти 
+  длиной в 256 байт, после чего МОНИТОР входит в режим ожидания. Повторное нажатие 
+  клавиши ВК выводит очередную “порцию дампа”. Нажатие клавиши (точка) прерывает 
+  работу директивы. Если через запятую после адреса ввести номер страницы (1—3), 
+  то на экран дисплея будет выведено содержимое соответствующей страницы памяти 
+  в шестнадцатиричном виде. Нулевые значения параметров и незначащие нули можно 
+  опускать.</P>
+<P ALIGN="JUSTIFY"><b>Директива “М”</b> — предназначена для просмотра и изменения 
+  содержимого одной или нескольких ячеек памяти. После ее ввода на экране высвечивается 
+  адрес ячейки и ее содержимое. Если необходимо изменить содержимое ячейки, набирают 
+  новое значение и нажимают клавишу ВК, если изменений не требуется, ее нажимают 
+  сразу же. При каждом нажатии на клавишу ВК значение адреса автоматически увеличивается 
+  на единицу. Нажатие клавиши “.” (точка) прерывает работу директивы.</P>
+<P ALIGN="JUSTIFY"><b>Директива “G”</b> — передает управление программе пользователя 
+  по заданному адресу. Предварительная установка регистров процессора не производится. 
+  Так, например, директива “G(BK)&gt;&gt; — запускает программу по адресу ООООН.</P>
+<P ALIGN="JUSTIFY"><b>Директива “Z”</b> — это модификация директивы “G”. Однако 
+  для ее выполнения не требуется вводить адрес перехода. Управление передается 
+  всегда по одному и тому же адресу — OBFFDH. Эта директива введена для удобства 
+  работы с программами, которые размещаются под “потолком” ОЗУ пользователя, т. 
+  е. в верхних адресах памяти. В таких программах (в конце) по адресу OBFFDH должна 
+  находиться команда безусловного перехода (JMP) на начало программы. При этом 
+  размер программы не будет влиять на стартовый адрес, а значит, все подобные 
+  программы можно запускать по одному стандартному адресу — OBFFDH.</P>
+<P ALIGN="JUSTIFY"><b>Директива “О”</b> — вывод массива информации, находящейся 
+  в ОЗУ, на магнитную ленту. Формат записи полностью совместим с компьютером “Ра-дио-86РК”. 
+  Скорость вывода — 1200 БОД, изменить ее можно только заменой константы в служебных 
+  ячейках МОНИТОРа директивой “М”.</P>
+<P ALIGN="JUSTIFY"><b>Директива “I”</b> — чтение информации с магнитной ленты 
+  и размещение ее в ОЗУ. После считывания массива на экран дисплея выводится начальный 
+  и конечный адреса, а также его контрольная сумма. Появление на экране рядом 
+  с контрольной суммой символа “?” (знак вопроса) говорит о том, что считывание 
+  произошло с ошибкой. Если не совпадает формат, скорость или не произошло опознание 
+  файла — выводится только “?”. Досрочный вывод (т. е. до окончания считывания 
+  программы) символа “?” указывает на дефекты записи (пропадание сигнала).</P>
+<P ALIGN="JUSTIFY"><b>Директива “С”</b> — предназначена для настройки экрана дисплея 
+  на отображение информации в цвете. Директива позволяет произвести проверку вывода 
+  информации в цветном (16-цветном) режиме на цветной дисплей (телевизор). Основное 
+  назначение директивы — проверить правильность подключения цветного дисплея и 
+  его настройку. Директива, согласно кода цвета, включает цветной режим и очищает 
+  область ОЗУ цвета в дополнительной странице памяти 1. После выполнения директивы 
+  “С” МОНИТОР и все другие программы пользователя будут выводить информацию на 
+  экран дисплея в том цветовом решении (цвет фона и отображения символов), которое 
+  было задано в параметре директивы.</P>
+<P ALIGN="JUSTIFY">Код цвета состоит из двух шестнадцатиричных символов от 0 до 
+  F. Первый символ указывает на цвет фона, второй — изображения. После ввода кода 
+  директивы, двух символов цвета нажимают клавишу (ВК). Если, например, ввести 
+  “C++В1+ВК”, то дальнейший вывод информации будет происходить в следующем цветовом 
+  решении: бирюзовые символы на синем фоне (см. таблицу кодов).</P>
+Следует заметить, что программный драйвер обработки экрана дисплея в МОНИТОРе 
+не поддерживает управление цветом, и это должна выполнять программа пользователя. 
+Коды цветов О — черный 
+<DIR> 
+  <DIR> 1 — синий<br>
+    2 — зеленый<br>
+    3 — бирюзовый<br>
+    4 — красный<br>
+    5 — пурпурный<br>
+    6 — коричневый<br>
+    7 — светло-серый<br>
+    8 — черный<br>
+    9 — голубой<br>
+    А — светло-зеленый<br>
+    В — светло-бирюзовый<br>
+    С — розовый<br>
+    D — светло-пурпурный<br>
+    Е — желтый<br>
+    F — белый&#9;</DIR>
+</DIR>
+<B> 
+<P ALIGN="CENTER">ТАБЛИЦА СТАНДАРТНЫХ ПОДПРОГРАММ ВВОДА-ВЫВОДА</P>
+</B> 
+<P ALIGN="JUSTIFY">МОНИТОР содержит набор <a href="OrMonTbl2.txt">стандартных&#9;подпрограмм</a> 
+  (табл. 1, 2 и 3),к которым программа пользователя может обращаться, соблюдая 
+  соглашение об обмене информацией. Набор подпрограмм в основном такой же, как 
+  в “Микро-80” и “Радио-86РК”, однако несколько расширен и изменен. Эти отличия 
+  связаны с архитектурными особенностями ПРК “Орион-128” и различием в организации 
+  отображения на экране дисплея. Несмотря на это большинство программ, разработанных 
+  для названных ПК, будут работоспособны и на “Орионе-128”.</P>
+<P ALIGN="CENTER">В табл.1 символом “*” помечены те входы подпрограмм ввода-вывода, 
+  которые имеют существенное отличие или являются совершенно новыми по отношению 
+  к “Радио-86РК”. Рассмотрим их.</P>
+<P ALIGN="JUSTIFY"><b>080FH</b> — вывод символа, содержащегося в аккумуляторе, 
+  на дисплей. Значение всех регистров сохраняется.</P>
+<P ALIGN="JUSTIFY"><b>0F824H</b> — чтение файла программы с магнитной ленты. Подпрограмма 
+  должна вызываться только при наличии сигнала фонограммы с магнитофона на входе 
+  компаратора. В противном случае произойдет программное прерывание и управление 
+  будет передано по адресу, хранящемуся в ячейках OF3D6, OF3D7H, т. е. на “теплый 
+  старт” МОНИТОРа.</P>
+<P ALIGN="JUSTIFY"><b>0F827H</b> — запись файла на магнитную ленту. Перед вызовом 
+  подпрограммы необходимо в регистровую пару “HL” занести начальный адрес, а в 
+  регистры “DE” — конечный адрес того участка памяти, который необходимо сохранить 
+  на ленте.</P>
+<P ALIGN="JUSTIFY"><b>0F82DH</b> — распаковка и размещение внутреннего знакогенератора 
+  в области служебного ОЗУ. Обращение к этой подпрограмме (без входных параметров) 
+  позволяет восстановить знакогенератор.</P>
+<P ALIGN="JUSTIFY"><b>0F836H</b> — чтение байта из дополнительной страницы. Адрес 
+  ячейки заносится в регистры “HL”. В регистр “А” — номер страницы, откуда происходит 
+  чтение. После выполнения подпрограммы в регистре “С” будет содержаться считанный 
+  байт.</P>
+<P ALIGN="JUSTIFY"><b>0F839H</b> — запись байта в дополнительную страницу памяти. 
+  Регистры “HL” и “А” имеют такое же назначение, что и в предыдущей подпрограмме, 
+  а в регистр “С” заносится байт, который должен быть записан в дополнительную 
+  страницу памяти.</P>
+<P ALIGN="JUSTIFY"><b>0F83CH</b> — установка курсора в заданное знакоместо на 
+  экране дисплея. В регистр “Н” заносится значение номера строки (0—18Н), регистр 
+  “L” — номер позиции ( 0— 3FH).</P>
+<P ALIGN="RIGHT">Таблица 1.</P>
+</FONT> 
+<P ALIGN="CENTER">
+<CENTER>
+  <TABLE BORDER CELLSPACING=1 BORDERCOLOR="#0000ff" CELLPADDING=2 WIDTH=100% align="center" name="Таблица 1">
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2>№</TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">НАЗНАЧЕНИЕ 
+        </font><font face="Courier New, Courier, mono" size="2">ПОДПРОГРАММ</font></TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">АДРЕС</font><font face="Courier New, Courier, mono" size="2"> 
+        ВЫЗОВА</font></TD>
+      <TD WIDTH="48%"> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">ПАРАМЕТРЫ</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="9" COLSPAN=2><P ALIGN="center"><font face="Courier New, Courier, mono" size="2">1</font></TD>
+      <TD height="9" COLSPAN=2><P align="center"><font face="Courier New, Courier, mono" size="2">ВВОД C СИМВОЛА С КЛАВИАТУРЫ</font></TD>
+      <TD height="9" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F803H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2045</font></TD>
+      <TD WIDTH="48%" height="9"> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВЫХ: А - ВВЕДЕННЫЙ СИМВОЛ</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="17" COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">2</font>
+      </TD>
+      <TD height="17" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВВОД 
+          БАЙТА С МАГНИТОФОНА</font>
+      </TD>
+      <TD height="17" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F806H</font><font face="Courier New, Courier, mono" size="2"><br>
+        -2042</font></TD>
+      <TD WIDTH="48%" height="17"> <font face="Courier New, Courier, mono" size="2">ВХ.: 
+        А = 0FFH - С ПОИСКОМ СИНХРОБАИТА </font><font face="Courier New, Courier, mono" size="2"><br>
+        А = 08Н - БЕЗ ПОИСКА</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">3</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВЫВОД 
+          СИМВОЛА НА ЭКРАН</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F809H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2039</font></TD>
+      <TD WIDTH="48%"> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВХ.: 
+          С - ВЫВОДИМЫЙ СИМВОЛ</font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="10" COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">4</font>
+      </TD>
+      <TD height="10" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ЗАПИСЬ 
+          БАЙТА НА МАГНИТОФОН</font>
+      </TD>
+      <TD height="10" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F80CH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2036</font></TD>
+      <TD WIDTH="48%" height="10"> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВХ.: 
+          С - ЗАПИСЫВАЕМЫЙ БАЙТ</font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">5*</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВЫВОД 
+          СИМВОЛА НА ЭКРАН</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F80FH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2033</font></TD>
+      <TD WIDTH="48%"> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВХ.: 
+          А - ВЫВОДИМЫЙ СИМВОЛ</font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="17" COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">6</font>
+      </TD>
+      <TD height="17" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ОПРОС 
+          СОСТОЯНИЯ КЛАВИАТУРЫ</font>
+      </TD>
+      <TD height="17" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F812H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-203И</font></TD>
+      <TD WIDTH="48%" height="17"> <font face="Courier New, Courier, mono" size="2">ВЫХ.: 
+        А = 00Н - НЕ НАЖАТА </font><font face="Courier New, Courier, mono" size="2"><br>
+        А = 0FFH - НАЖАТА</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">7</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВЫВОД 
+          БАЙТА НА ЭКРАН В НЕХ-КОДЕ</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0FS15H</font><font face="Courier New, Courier, mono" size="2"><br>
+        -2027</font></TD>
+      <TD WIDTH="48%"> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВХ.: 
+          А - ВЫВОДИМЫЙ СИМВОЛ</font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="5" COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">8</font>
+      </TD>
+      <TD height="5" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВЫВОД 
+          НА ЭКРАН СООБЩЕНИИ</font>
+      </TD>
+      <TD height="5" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F81BH</font><font face="Courier New, Courier, mono" size="2"><br>
+        -2В24</font></TD>
+      <TD WIDTH="48%" height="5"> <font face="Courier New, Courier, mono" size="2">ВХ.: 
+        HL- - АДРЕС НАЧАЛА </font><font face="Courier New, Courier, mono" size="2">КОНЕЧНЫЙ 
+        БАЙТ - 00Н</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="41" COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">9</font>
+      </TD>
+      <TD height="41" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ВВОД 
+          КОДА НАЖАТОЙ КЛАВИШИ (INKEY)</font>
+      </TD>
+      <TD height="41" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F81BH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2021</font></TD>
+      <TD WIDTH="48%" height="41"> <font face="Courier New, Courier, mono" size="2">ВЫХ: 
+        А = 0FFH - НЕ НАЖАТА </font><font face="Courier New, Courier, mono" size="2"><br>
+        А = 0FEH - РУС/ЛАТ </font><font face="Courier New, Courier, mono" size="2">ИНАЧЕ 
+        - КОД КЛАВИШИ</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">10</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ЗАПРОС 
+          ПОЛОЖЕНИЯ КУРСОРА</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F81EH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2018</font></TD>
+      <TD WIDTH="48%"> <font face="Courier New, Courier, mono" size="2">ВЫХ: Н 
+        - НОМЕР СТРОКИ - Y a </font><font face="Courier New, Courier, mono" size="2"><br>
+        L - НОМЕР ПОЗИЦИИ - X</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">11</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">НЕ 
+          ИСПОЛЬЗУЕТСЯ</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F821H</font><font face="Courier New, Courier, mono" size="2"><br>
+        -2015</font></TD>
+      <TD WIDTH="48%"> 
+        <P align="center"><font face="Courier New, Courier, mono"><font face="Courier New, Courier, mono"><font size="2"><font face="Courier New, Courier, mono"><font face="Courier New, Courier, mono"><font size="2">&nbsp;</font></font></font></font></font></font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">12*</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ЧТЕНИЕ 
+          ФАЙЛА ИЗ МАГ. ЛЕНТЫ</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F824H</font><font face="Courier New, Courier, mono" size="2"><br>
+        -2012</font></TD>
+      <TD WIDTH="48%"> <font face="Courier New, Courier, mono" size="2">МАССИВ 
+        РАЗМЕШ.ПО АДРЕСАМ </font><font face="Courier New, Courier, mono" size="2">ЗАП. 
+        НА МАГНИТНОЙ ЛЕНТЕ</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">13*</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ЗАПИСЬ 
+          ФАЙЛА НА МАГ. ЛЕНТУ</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2"> 0F827H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2009</font></TD>
+      <TD WIDTH="48%"> <font face="Courier New, Courier, mono" size="2">ВХ.: HL- 
+        НАЧ. АДРЕС МАССИВА в </font><font face="Courier New, Courier, mono" size="2"><br>
+        DE- КОНЕЧ. АДРЕС</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">14</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ПОДСЧЕТ 
+          КОНТРОЛЬНОЙ СУММЫ БЛОКА</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0FB2AH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2006</font></TD>
+      <TD WIDTH="48%"> <font face="Courier New, Courier, mono" size="2">ВХ.: HL 
+        - АДРЕС НАЧАЛА Е </font><font face="Courier New, Courier, mono" size="2">DE 
+        - АДРЕС КОНЦА </font><font face="Courier New, Courier, mono" size="2">ВЫХ: 
+        <br>
+        ВС - КОНТРОЛЬНАЯ СУММА</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD height="2" COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">15*</font>
+      </TD>
+      <TD height="2" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">РАСПАКОВКА 
+          ВНУТРЕННЕГО ЗНАКОГЕНЕРАТОРА</font>
+      </TD>
+      <TD height="2" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F82DH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2003</font></TD>
+      <TD WIDTH="48%" height="2"> 
+        <P align="center"><font face="Courier New, Courier, mono"><font face="Courier New, Courier, mono"><font size="2"><font face="Courier New, Courier, mono"><font face="Courier New, Courier, mono"><font size="2">&nbsp;</font></font></font></font></font></font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2><P ALIGN="center"><font face="Courier New, Courier, mono" size="2">16</font></TD>
+      <TD COLSPAN=2><P align="center"><font face="Courier New, Courier, mono" size="2">ЧТЕНИЕ КОНЕЧНОГО АДРЕСА ОЗУ ПОЛЬЗОВАТ.</font></TD>
+      <TD COLSPAN=2><font face="Courier New, Courier, mono" size="2">0F830H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-2000</font></TD>
+      <TD COLSPAN=2 width="48%"> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">ВЫХ: HL -КОНЕЧНЫЙ АДРЕС</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">17</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ЗАПИСЬ 
+          КОНЕЧНОГО АДРЕСА ОЗУ ПОЛЬЗОВАТ.</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F833H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-1997</font></TD>
+      <TD COLSPAN=2 width="48%"> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">EX. 
+          : HL -КОНЕЧНЫЙ АДРЕС</font>
+      </TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">18*</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">ЧТЕНИЕ 
+          БАЙТА ИЗ ДОП. СТРАН.</font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F836H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-1994</font></TD>
+      <TD COLSPAN=2 width="48%"> <font face="Courier New, Courier, mono" size="2">BX.: 
+        HL-АДРЕС</font><font face="Courier New, Courier, mono" size="2">А - N 
+        СТРАНИЦЫ (0-3) </font><font face="Courier New, Courier, mono" size="2"><br>
+        ВЫХ: С - СЧИТАННЫЙ БАЙТ</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2 height="2"> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">19*</font>
+      </TD>
+      <TD height="2" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">ЗАПИСЬ 
+        БАЙТА</font><font face="Courier New, Courier, mono" size="2">В ДОП. СТРАНИЦУ</font></TD>
+      <TD height="2" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F839H<br>
+        </font><font face="Courier New, Courier, mono" size="2">-1991</font></TD>
+      <TD height="2" COLSPAN=2 width="48%"> <font face="Courier New, Courier, mono" size="2">BX.: 
+        HL - АДРЕС</font><font face="Courier New, Courier, mono" size="2">А - 
+        N СТРАНИЦЫ (0-3)</font><font face="Courier New, Courier, mono" size="2"><br>
+        C - ЗАПИСЫВАЕМЫЙ БАЙТ</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">20*</font>
+      </TD>
+      <TD COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">УСТАНОВКА 
+          КУРСОРА </font>
+      </TD>
+      <TD COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F83CH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-1988</font></TD>
+      <TD COLSPAN=2 width="48%"> <font face="Courier New, Courier, mono" size="2">ВХ. 
+        Н - НОМЕР СТРОКИ - Y</font><font face="Courier New, Courier, mono" size="2"><br>
+        L - НОМЕР ПОЗИЦИИ - X</font></TD>
+    </TR>
+    <TR align="center" valign="middle"> 
+      <TD COLSPAN=2 height="2"> 
+        <P ALIGN="center"><font face="Courier New, Courier, mono" size="2">21*</font>
+      </TD>
+      <TD height="2" COLSPAN=2> 
+        <P align="center"><font face="Courier New, Courier, mono" size="2">РЕЗЕРВ</font>
+      </TD>
+      <TD height="2" COLSPAN=2> <font face="Courier New, Courier, mono" size="2">0F83FH<br>
+        </font><font face="Courier New, Courier, mono" size="2">-1988</font></TD>
+      <TD height="2" COLSPAN=2 width="48%"> 
+        <P align="center"><font face="Courier New, Courier, mono"><font face="Courier New, Courier, mono"><font size="2"><font face="Courier New, Courier, mono"><font face="Courier New, Courier, mono"><font size="2">&nbsp;</font></font></font></font></font></font>
+      </TD>
+    </TR>
+  </TABLE>
+</CENTER>
+<p></P>
+<FONT FACE="Verdana" SIZE=2> 
+<P ALIGN="JUSTIFY">&nbsp;</P>
+</FONT> 
+<div align="right"><FONT FACE="Verdana" SIZE=2>Таблица 3.</font> </div>
+<DIR> 
+  <DIR> 
+    <DIR> 
+      <DIR> <font face="Courier New, Courier, mono" size="2"> F800&#9;- F8FF&#9;48А8<br>
+        F900&#9;- F9FF&#9;0В2В<br>
+        FA00&#9;- FAFF&#9;С5ЕЗ<br>
+        FB00&#9;- FBFF&#9;91СЗ<br>
+        FC00&#9;- FCFF&#9;92В2 <br>
+        FD00&#9;- FDFF&#9;0243<br>
+        FE00&#9;- FEFF&#9;8575 <br>
+        FFB0&#9;- FFFF&#9;С680<br>
+        F800&#9;- FFFF&#9;5В63</font></DIR>
+    </DIR>
+  </DIR>
+</DIR>
+<FONT FACE="Verdana" SIZE=2> <B> 
+<P ALIGN="CENTER">СЛУЖЕБНЫЕ ЯЧЕЙКИ МОНИТОРА</P>
+</B> 
+<P ALIGN="JUSTIFY">Для своей работы МОНИТОР использует незначительный объем памяти. 
+  В этой области размещаются рабочие ячейки МОНИТОРа и константы. К основным рабочим 
+  (служебным) ячейкам имеется доступ через стандартную таблицу ввода-вывода, размещенную 
+  в начальных адресах МОНИТОРа. Назначение остальных ячеек, представляющих интерес 
+  для пользователя, приведен ниже.</P>
+<P ALIGN="JUSTIFY"><b>0F3D1H</b> — ячейка, в которой хранится начальный адрес 
+  знакогенератора. При инициализации МОНИТОР записывает в эту ячейку значение 
+  — 0F000H. При необходимости пользователь может указать свой адрес, по которому 
+  размещен другой знакогенератор. При этом, однако, следует помнить, что драйвер 
+  дисплея символы с кодом 00—1FH на экран не выводит и в знакогенераторе для них 
+  место не выделяется. Таким образом, знакогенератор всегда начинается с кода 
+  20Н, т. е. “пробела”.</P>
+<P ALIGN="JUSTIFY"><b>0F3D3H</b> — ячейка, хранящая признак прямого (00Н) вывода 
+  (светлые символы на темном фоне) или инверсного (0FFH) вывода (темные символы 
+  на светлом фоне). В цветном режиме цвета изображения и фона меняются местами.</P>
+<P ALIGN="JUSTIFY"><b>0F3D8H</b> — ячейка, содержащая адрес возврата из подпрограммы 
+  чтения байта (OF806H) при “зависании” или выпадании сигнала. МОНИТОР заносит 
+  в эту ячейку адрес “теплого старта”. Программа пользователя должна заносить 
+  в эту ячейку свой адрес возврата, в противном случае при невозможности чтения 
+  байта программа осуществит возврат в МОНИТОР.</P>
+<P ALIGN="JUSTIFY"><b>0F3DAH</b> — ячейка, в которой хранится константа записи 
+  на магнитную ленту. Для скорости 1200 бод. Она имеет значение 40Н.</P>
+<P ALIGN="JUSTIFY"><b>0F3DBH</b> — ячейка, хранящая константу чтения с магнитной 
+  ленты. Для стандартной скорости — 60Н.</P>
+<P ALIGN="JUSTIFY">Следует заметить, что высокая тактовая частота процессора позволяет 
+  уменьшить значение констант и значительно повысить плотность записи на магнитной 
+  ленте. Однако увлекаться этим не стоит, т. к. качество отечественной ленты и 
+  лентопротяжных механизмов не позволяет гарантировать надежность чтения программ 
+  при более высоких плотностях записи.</P>
+<P ALIGN="RIGHT">в сугоняко В. САФРОНОВ, К. КОНЕНКОВ</P>
+<P ALIGN="JUSTIFY">Московская обл.</P>
+Отсканировано с журнала Радио №2 1990 г.<br>
+Отредактировано Лесных. Ю. 2001 г. 
+<P ALIGN="CENTER">ВНИМАНИЮ ЧИТАТЕЛЕЙ</P>
+</FONT> 
+<p><FONT FACE="Verdana" SIZE=2>В статье А. Долгого “Контроллер последовательного 
+  интерфейса” (“Радио”, 1989, № 6) при подготовке материала к публикации допущены 
+  следующие ошибки:</FONT></p>
+<ul>
+  <li><FONT FACE="Verdana" SIZE=2>на рис. 1 неправильно обозначены номера выводов 
+    микросхемы DD1. Должно быть: OUT1-13, OUT2-17. Сигнал CS ошибочно назван SC;</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>перепутаны местами рис. 3 и рис. 4.</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>на рис. 5 (вид со стороны установки деталей) 
+    контактная площадка, находящаяся слева от левого вывода резистора R2, ошибочно 
+    соединена с цепью контакта 12 разъема. Она должна быть соединена только с 
+    контактом 11 разъема платы.</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>на рис. 5 (вид со стороны пайки) отсутствует 
+    соединение вывода 10 микросхемы DD1 с находящейся левее него контактной площадкой.</FONT></li>
+</ul>
+<FONT FACE="Verdana" SIZE=2> 
+<UL>
+  <p></P>
+</UL>
+<P ALIGN="JUSTIFY">В статье Д. Лукьянова “RAMDOS для “Радио-86РК” (“Радио”, 1989, 
+  № 9) в таблице BITMAP по адресу 0262Н должен быть занесен код 01.</P>
+</FONT> 
+<p><FONT FACE="Verdana" SIZE=2>В принципиальную схему ПРК “Орион-128” (“Радио”, 
+  1990, № 1) необходимо внести следующие изменения:</FONT></p>
+<ul>
+  <li><FONT FACE="Verdana" SIZE=2>выводы 10, 12, 123 элемента DD12.1 и соединенные 
+    с ними выводы 1, 2, 4 элемента DD12.2 через резистор сопротивлением 1кОм должны 
+    быть подключены к источнику питания +5В.</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>выход процессора (DD19) SNY имеет порядковый 
+    номер вывода 19, а вывод 17 соответствует сигналу RD.</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>вход элемента DD15.6 — вывод 13, выход — 12, 
+    элемента DD15.1 соответственно 1 и 2.</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>резистор R24 входит в жгут под номером 416, 
+    а конденсатор С10 — под номером 472.</FONT></li>
+  <li><FONT FACE="Verdana" SIZE=2>вывод В9 (сигнал “Сброс”) разъема Х4 входит 
+    в жгут под номером 116.</FONT></li>
+</ul>
+<FONT FACE="Verdana" SIZE=2> 
+<UL>
+  <p></P>
+</UL>
+</FONT> 
+
+
+<table width="100%" border="1" align="center">
+  <tr> 
+    <td align="center" bgcolor="#D3D913" width="70%"> 
+      <div align="center"><b><font size="+1" face="Courier New, Courier, mono">Описание 
+        компьютера <i>Орион-128</i></font></b></div>
+    </td>
+    <td align="right" bgcolor="#EDC4B6" width="30%"> 
+      <div align="center"><font size="+1"><i><font face="Courier New, Courier, mono">Журнал 
+        РАДИО</font></i></font></div>
+    </td>
+  </tr>
+</table>
+
+
+<br><br>
+<div align="center" class="textads">
+<a href="http://www.pfgfx.ru/" target="_blank" title="Forex, форекс, скачать forex">Forex (Форекс)</a> - начни сейчас! &lt;&lt;&gt;&gt; <a href="http://www.webservis.ru/" target="_blank" title="Бесплатный хостинг">Бесплатный хостинг</a> &lt;&lt;&gt;&gt; Микро <a href="http://www.pfgfxlite.ru/" target="_blank" title="Forex, мини форекс, микро forex">Форекс (forex)</a> ставка от $10 &lt;&lt;&gt;&gt; Профессиональный <a href="http://www.centre.ru/" target="_blank" title="хостинг, профессиональный хостинг, PHP хостинг">Хостинг</a> для вас!
+</div>
+<br><br>
+</BODY>
+</HTML>
