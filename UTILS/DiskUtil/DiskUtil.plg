@@ -1,0 +1,30 @@
+--------------------Configuration: DiskUtil - Win32 Release--------------------
+Begining build with project "C:\Borland\Delphi5\Projects\DiskUtil\DiskUtil.dsp", at root.
+Active configuration is Win32 (x86) Console Application (based on Win32 (x86) Console Application)
+
+Project's tools are:
+			"32-bit C/C++ Compiler for 80x86" with flags "/nologo /ML /W3 /vd0 /Og /Oi /Os /Oy /Gy /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FR"Release/" /Fp"Release/DiskUtil.pch" /YX"DiskUtil.h" /Fo"Release/" /Fd"Release/" /FD /GF /c "
+			"Win32 Resource Compiler" with flags "/l 0x809 /d "NDEBUG" "
+			"Browser Database Maker" with flags "/nologo /o"Release/DiskUtil.bsc" "
+			"COFF Linker for 80x86" with flags "kernel32.lib user32.lib advapi32.lib setupapi.lib /nologo /subsystem:console /incremental:no /pdb:"Release/DiskUtil.pdb" /map:"Release/DiskUtil.map" /machine:I386 /out:"Release/DiskUtil.exe" "
+			"Custom Build" with flags ""
+			"<Component 0xa>" with flags ""
+
+Creating temp file "C:\DOCUME~1\Super\LOCALS~1\Temp\RSP5.tmp" with contents </nologo /ML /W3 /vd0 /Og /Oi /Os /Oy /Gy /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FR"Release/" /Fp"Release/DiskUtil.pch" /YX"DiskUtil.h" /Fo"Release/" /Fd"Release/" /FD /GF /c 
+"C:\Borland\Delphi5\Projects\DiskUtil\DiskUtil.cpp"
+>
+Creating command line "cl.exe @C:\DOCUME~1\Super\LOCALS~1\Temp\RSP5.tmp" 
+Creating command line "link.exe kernel32.lib user32.lib advapi32.lib setupapi.lib /nologo /subsystem:console /incremental:no /pdb:"Release/DiskUtil.pdb" /map:"Release/DiskUtil.map" /machine:I386 /out:"Release/DiskUtil.exe"  .\Release\DiskUtil.obj" 
+Compiling...
+DiskUtil.cpp
+Linking...
+Creating temp file "C:\DOCUME~1\Super\LOCALS~1\Temp\RSP6.bat" with contents <@echo off
+if exist \utils\upx.exe upx -9 .\Release\DiskUtil.exe
+if exist \Shared copy .\Release\DiskUtil.exe \Shared
+>
+Creating command line "C:\DOCUME~1\Super\LOCALS~1\Temp\RSP6.bat" 
+
+
+
+
+DiskUtil.exe - 0 error(s), 0 warning(s)
