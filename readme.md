@@ -17,7 +17,7 @@ ROM-DISK - страндартный, содержится во внешнем файле, + расширенный режим (16 ст
 муз.процессор- эмуляция AY-3-8910 на портах BFFD/FFFD, 3Eh..3Fh (Орион-ПРО)
 IDE (HDD) - эмуляция контролера IDE на 580вв55 (порт F500/F600), 56h..5Fh (Орион-ПРО)
 SD-card - Эмулируются 2 варианта:
-               = совместимо по схеме с n8vem (port F762):
+               = совместимо по схеме с n8vem (port  F762):
                  http://n8vem-sbc.pbworks.com/browse/#view=ViewFolder&param=N8VEM%20Schematics
                = совместимо по схеме с MSX MMC-drive V1 (port F762, F763):
                  http://msx.retro8bits.com/sd-mmc-drive.html

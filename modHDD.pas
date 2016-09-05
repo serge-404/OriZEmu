@@ -613,15 +613,10 @@ begin
    Case FCtl of
     ide_control : if Active then
                   begin
-                    if ((FReg.reg_control and 4)=0) then
-                    begin
-                      if ((FLsb and 4)=4) then begin
-                        IdeReset();                                               // perform IdeReset on D2 bit front
-                        FReg.reg_status:=ide_sts_BSY;
-                      end
-                      else
-                        FReg.reg_status:=ide_sts_RDY;                             // 
-                    end;
+                    if ((FReg.reg_control and 4)=0)and((FLsb and 4)=4) then
+                      FReg.reg_status:=ide_sts_BSY;
+                    if ((FReg.reg_control and 4)=4)and((FLsb and 4)=0) then
+                      IdeReset();                                               // perform IdeReset on D2 bit
                     FReg.reg_control:=FLsb;
                   end;
     ide_data    : if Active and (FBufPtr>=0) then
