@@ -1,11 +1,12 @@
 object Form1: TForm1
   Left = 192
   Top = 124
-  BorderStyle = bsSingle
+  Width = 710
+  Height = 305
   Caption = 'Save ORD,BRU files (max 8kb total) to ROM2 BIOS'
-  ClientHeight = 267
-  ClientWidth = 682
   Color = clBtnFace
+  Constraints.MinHeight = 280
+  Constraints.MinWidth = 690
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -19,6 +20,7 @@ object Form1: TForm1
     Top = 216
     Width = 225
     Height = 33
+    Anchors = [akLeft, akBottom]
     Caption = 'Install ORD into ROM'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -30,10 +32,11 @@ object Form1: TForm1
     OnClick = btnMakeClick
   end
   object btnCancel: TButton
-    Left = 528
+    Left = 540
     Top = 216
     Width = 137
     Height = 33
+    Anchors = [akRight, akBottom]
     Caption = 'Cancel'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -63,8 +66,9 @@ object Form1: TForm1
   object lbORDFiles: TListBox
     Left = 160
     Top = 64
-    Width = 505
+    Width = 517
     Height = 129
+    Anchors = [akLeft, akTop, akRight, akBottom]
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -77,8 +81,9 @@ object Form1: TForm1
   object edROM2File: TEdit
     Left = 160
     Top = 8
-    Width = 505
+    Width = 517
     Height = 28
+    Anchors = [akLeft, akTop, akRight]
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16

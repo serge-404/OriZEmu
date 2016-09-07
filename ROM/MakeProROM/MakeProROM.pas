@@ -78,7 +78,7 @@ begin
   next_ordos:=0;
   FillChar(ROM2BIOS, SizeOf(ROM2BIOS), $FF);
   for i:=0 to lbORDFiles.Items.Count-1 do
-    if FileExists(lbORDFiles.Items[i]) and (next_ordos<sizeof(ROM2BIOS)-17) then
+    if FileExists(lbORDFiles.Items[i]) and (next_ordos<sizeof(ROM2BIOS)-33) then
     begin
       FStream:=nil;
       FStream:=TFileStream.Create(lbORDFiles.Items[i], fmOpenRead or fmShareDenyWrite);
@@ -100,10 +100,10 @@ begin
     FStream:=TFileStream.Create(trim(edROM2File.Text), fmOpenReadWrite or fmShareDenyWrite);
     FStream.Seek($4D80, soFromBeginning	);
     FStream.WriteBuffer(ROM2BIOS[0], $1270);
-    FStream.Seek($1260, soFromBeginning	);
-    FStream.WriteBuffer(ROM2BIOS[$1270], $D90);
+    FStream.Seek($1270, soFromBeginning	);
+    FStream.WriteBuffer(ROM2BIOS[$1270], $D80);
     FStream.Free;
-    Application.MessageBox(StrFmt(ROM2BIOS,'%d Ordos files -'#13#10'%s'#13#10'writted to ROM2 PRO BIOS file'#13#10'%s'#13#10#10'at positions 4D80h..5FEFh, 1260h..1FEFh', [cnt, PChar(sst), PChar(edROM2File.Text)]), 'Done', MB_OK);
+    Application.MessageBox(StrFmt(ROM2BIOS,'%d Ordos files -'#13#10'%s'#13#10'writted to ROM2 PRO BIOS file'#13#10'%s'#13#10#10'at positions 4D80h..5FEFh, 1270h..1FEFh', [cnt, PChar(sst), PChar(edROM2File.Text)]), 'Done', MB_OK);
   end;
 end;
 
