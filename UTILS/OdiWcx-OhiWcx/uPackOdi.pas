@@ -99,9 +99,11 @@ type
              end;
   PFileRec = ^TFileRec;
 
+  TJump = array [0..7] of byte;
+
   TBootDPB = packed record    // Disk Parameters Header (BOOT .. BOOT+1EH, BOOT+1FH=CRC)
 //-------------------------------------------------------------------- Orion specific
-               jump: array [0..7] of byte;
+               jump: TJump;
                PAGE1: byte;
                PAGE2: byte;
                LEN1:  byte;   // phisical sector size (1=256, 2=512, 3=1024)
@@ -120,6 +122,7 @@ type
                OFF:   word;   // system tracks
                CRC:   byte;   // simple additional CRC beginning with 066h
              end;
+  PBootDPB = ^TBootDPB;
 
 const
   DPBdefault: TBootDPB =
@@ -140,9 +143,18 @@ const
      cks:   $0020;
      off:   $0004;
      crc:   $D3);
-
+  SystemTracks = 'UseThis_ToAccess_SystemTracks';
+  SystemBin = 'System.bin';
+  SystemUser = 254;
 
 type
+  TSystemBinRec = packed record                         // sizeof=32
+                   Name:array[0..22]of char;
+                   Size:integer;
+                   Date:integer; // in format of FileGetDate() function
+                   CRC:byte;
+                 end;
+
   TFCBFileName = array[0..10] of char;
 
   TFCB = packed record
@@ -166,23 +178,39 @@ type
                end;
   PFormatRec = ^TFormatRec;
 
+  TAltBOOT = packed record                                              // AltairDOS boot
+               DPB:  TBootDPB;
+               LBL:  array[0..15] of char;                              // 20..2Fh
+               CODE: array[$30..$FC] of byte;
+               SLBL: byte;                                              // $FD - label checksum
+               SUNM: byte;                                              // $FE - usernames checksum
+               STIM: byte;                                              // $FF - filetimes checksum
+               UNM:  array[0..15, 0..15] of char;                       // user names (catalogs)
+               TIM:  array[0..255] of TAltFileTime;                     // filetime array
+             end;
+  PAltBOOT = ^TAltBOOT;
+
+  TExtBoot = packed record
+               DPB:  TBootDPB;
+               LBL:  array[0..15] of char;                              // 20..2Fh
+               CODE: array[$30..$FC] of byte;
+               SLBL: byte;                                              // $FD - label checksum
+               SUNM: byte;                                              // $FE - usernames checksum
+               STIM: byte;                                              // $FF - filetimes checksum
+               UNM:  array[0..15, 0..15] of char;                       // user names (catalogs)
+               TIM:  array[0..255] of TAltFileTime;                     // filetime array
+               BOOTvalid, LBLvalid, UNMvalid, TIMvalid, Damaged, SystemBinValid: boolean;
+               SystemBinRec: TSystemBinRec;
+             end;
+  PExtBOOT = ^TExtBOOT;
+
   TAllocationMap = array [0..16383] of word;     // $FFFF=unused extent, else - ordinal file number
 
   TScanCatalogCallBack = function(FS: TStream; SerialN: integer;
                                   var FCB: TFCB; PParam: pointer): boolean;
 
 var
-  BOOT: packed record                                              // global
-          DPB:  TBootDPB;
-          LBL:  array[0..15] of char;                              // 20..2Fh
-          CODE: array[$30..$FC] of byte;
-          SLBL: byte;                                              // $FD - label checksum
-          SUNM: byte;                                              // $FE - usernames checksum
-          STIM: byte;                                              // $FF - filetimes checksum
-          UNM:  array[0..15, 0..15] of char;                       // user names (catalogs)
-          TIM:  array[0..255] of TAltFileTime;                     // filetime array
-          BOOTvalid, LBLvalid, UNMvalid, TIMvalid, Damaged: boolean;
-        end;
+  BOOT: TExtBoot;
   AllocationMap: TAllocationMap;                                   // global
   CatalogMap: TAllocationMap;                                      // global
   FileList: TList;                                                 // global
@@ -488,26 +516,28 @@ begin
     end;
 end;
 
-procedure GetBOOT(FName: string; FS: TFileStream; FmtN: integer);
-var xsum: byte;
-    i, d, CalculatedSize: integer;
+function XorCRC(buf:PChar; size:integer):byte;
+var i:integer;
 begin
+  Result:=0;
+  for i:=0 to size-1 do
+    Result:=Result xor ord(buf[i]);
+end;
+
+procedure GetBOOT(FName: string; FS: TFileStream; FmtN: integer);
+var d, CalculatedSize: integer;
+begin
+  BOOT.SystemBinValid:=False;
   BOOT.Damaged:=False;
   FS.Seek(PartitionOffset, soFromBeginning);                                         {V1.01}
-  FS.Read(BOOT, sizeof(BOOT));
+  FS.Read(BOOT, sizeof(TAltBoot));
   BOOT.BOOTvalid:=DPBcrc(BOOT.DPB)=BOOT.DPB.CRC;
-  xsum:=0;
-  for i:=0 to sizeof(BOOT.LBL)-1 do
-    xsum:=xsum xor ord(BOOT.LBL[i]);
-  BOOT.LBLvalid:=BOOT.BOOTvalid and (xsum=BOOT.SLBL);
-  xsum:=0;
-  for i:=0 to sizeof(BOOT.UNM)-1 do
-    xsum:=xsum xor byte(PChar(@BOOT.UNM)[i]);
-  BOOT.UNMvalid:=BOOT.BOOTvalid and (xsum=BOOT.SUNM);
-  xsum:=0;
-  for i:=0 to sizeof(BOOT.TIM)-1 do
-    xsum:=xsum xor byte(PChar(@BOOT.TIM)[i]);
-  BOOT.TIMvalid:=BOOT.BOOTvalid and (xsum=BOOT.STIM);
+  BOOT.LBLvalid:=BOOT.BOOTvalid and
+                (XorCRC(BOOT.LBL,sizeof(BOOT.LBL))=BOOT.SLBL);
+  BOOT.UNMvalid:=BOOT.BOOTvalid and
+                (XorCRC(@BOOT.UNM[0,0], sizeof(BOOT.UNM))=BOOT.SUNM);
+  BOOT.TIMvalid:=BOOT.BOOTvalid and
+                (XorCRC(PChar(pointer(@BOOT.TIM[0])),sizeof(BOOT.TIM))=BOOT.STIM);
   if (not BOOT.BOOTvalid)and(PartitionOffset=0)and(USE_DPBLESS_DISKS<>0) then           // 20160726: DPBless disks support is only for disk images (PartitionOffset=0)
   begin
     if FmtN<0 then
@@ -519,7 +549,7 @@ begin
         then
           break
         else
-          inc(i);
+          inc(FmtN);
     end;
     if FmtN<FormatList.Count then    // format found
       with PFormatRec(FormatList.Items[FmtN])^ do
@@ -554,6 +584,10 @@ begin
     ExtentSize := LogBlkInExt*LogBlockSize;
     ExtentsInFCB := (BOOT.DPB.EXM+1)*16384 div ExtentSize;
     SetLength(ExtentBuf, ExtentSize*ExtentsInFCB+1);
+
+    FS.Seek(PhySectorSize * BOOT.DPB.SEC * BOOT.DPB.OFF + PartitionOffset - sizeof(BOOT.SystemBinRec), soFromBeginning);  // 20160909 - for sysgen special catalog/file
+    FS.Read(BOOT.SystemBinRec, sizeof(BOOT.SystemBinRec));
+    BOOT.SystemBinValid:=DPBcrc(PBootDPB(pointer(@BOOT.SystemBinRec))^)=BOOT.SystemBinRec.CRC;
   end;
 end;
 
@@ -565,7 +599,11 @@ begin
   try
     FS:=TFileStream.Create(OdiArchiveName, fmOpenReadWrite or fmShareDenyWrite);
     FS.Seek(PartitionOffset, soFromBeginning);                                      {V1.01}
-    FS.Write(BOOT, sizeof(BOOT));
+    FS.Write(BOOT, 256);
+    if BOOT.UNMvalid then
+      FS.Write(BOOT.UNM, sizeof(BOOT.UNM));
+    if BOOT.TIMvalid then
+      FS.Write(BOOT.TIM, sizeof(BOOT.TIM));
   finally
     if Assigned(FS) then FS.Free;
   end;
@@ -605,8 +643,10 @@ function ExtractFileUser(FName: string): byte;     // '...\USER_12\filename.ext'
 var UPath: string;
     i: integer;
 begin
-  Result:=$FF;
+  Result:=SystemUser;
   UPath:=ExtractFilePath(FName);
+  if pos(SystemTracks+'\',UPath)<>0 then exit;                              // 20160909 for sysgen special subdir
+  Result:=$FF;
   while (UPath<>'') and (not (UPath[Length(Upath)] in ['0'..'9'])) do
     delete(UPath, Length(Upath), 1);
   i:=Length(Upath);
@@ -785,7 +825,7 @@ begin
     new(PFRec);
     new(PFCBExt);
     with PFRec^ do
-    begin
+    begin                            
       FileUser:=FCB.User;
       FileName:=FName;
       FileSize:=(GetFCBordinalN(FCB) * 128 + FCB.SizePartial) * LogBlockSize;
@@ -829,7 +869,7 @@ begin
     DisposeFileList(FileList);
     FillChar(CatalogMap, sizeof(CatalogMap), $FF);
     FillChar(AllocationMap, sizeof(AllocationMap), $FF);
-    for j:=0 to 15 do
+    for j:=0 to 15 do                           // users(subdirs)
     begin
       new(PFRec);
       with PFRec^ do
@@ -844,6 +884,37 @@ begin
       FileList.Add(PFRec);
     end;
     Result:=ScanCatalog(OdiArchiveName, fmOpenRead, ScanCatalogList, nil);
+    if (Result>=0)and(BOOT.BOOTvalid) then begin
+     new(PFRec);                                 // 20160909 Special catalog for sysgen (access system tracks)
+     with PFRec^ do
+     begin
+      FileUser:=SystemUser;
+      FileName:=SystemTracks;
+      FileSize:=0;
+      FileTime:=0;
+      FileAttr:=faDirectory;
+      FExtents:=nil;
+     end;
+     FileList.Add(PFRec);
+     new(PFRec);                                 // 0160909 Special file for sysgen (access system tracks)
+     with PFRec^ do
+     begin                            
+      FileUser:=SystemUser;
+      if BOOT.SystemBinValid then begin
+        FileName:=SystemTracks+'\'+StrPas(BOOT.SystemBinRec.Name);
+        FileSize:=BOOT.SystemBinRec.Size;
+        FileTime:=BOOT.SystemBinRec.Date;
+      end
+      else begin
+        FileName:=SystemTracks+'\'+SystemBin;
+        FileSize:=PhySectorSize * BOOT.DPB.SEC * BOOT.DPB.OFF;
+        FileTime:=0;
+      end;
+      FileAttr:=0;      // faSysFile;
+      FExtents:=nil;
+     end;
+     FileList.Add(PFRec);
+    end;
   except
     Result:=-1;
   end;
@@ -908,17 +979,6 @@ function OdiFileExtract(OdiArchiveName: string; PFRec: PFileRec; OutName: string
 var FS, FSOut: TFileStream;
     i, j, LogSize: integer;
     PFcbExt: PFCBExtent;
-{  function SearchFCBExtent(PRec: PFileRec; OrdN: integer):PFCBExtent;
-  var ii: integer;
-  begin
-    SearchFCBExtent:=nil;
-    ii:=0;
-    while (ii<PFRec^.FExtents.Count) and
-          (OrdN<>PFCBExtent(PRec^.FExtents.Items[ii])^.OrdinalN) do
-      inc(ii);
-    if (ii<PFRec^.FExtents.Count) then
-      SearchFCBExtent:=PFCBExtent(PRec^.FExtents.Items[ii]);
-  end; }
 begin
   Result:=ERR_FILE_OPEN;
   FS:=nil;
@@ -927,6 +987,15 @@ begin
     FS:=TFileStream.Create(OdiArchiveName, fmOpenRead or fmShareDenyWrite);
     FSOut:=TFileStream.Create(OutName, fmCreate);
     i:=0;
+    if PFRec^.FileUser=SystemUser then begin
+        if PFRec^.FileSize>=sizeof(ExtentBuf) then
+          SetLength(ExtentBuf, PFRec^.FileSize+1);
+        FS.Seek(PartitionOffset, soFromBeginning);
+        FS.Read(ExtentBuf[0], PFRec^.FileSize);
+        FSOut.Write(ExtentBuf[0], PFRec^.FileSize);
+        Result:=0;
+      end
+    else
     while i<PFRec^.FExtents.Count do
     begin
       PFcbExt:=PFRec^.FExtents.Items[i];    //SearchFCBExtent(PFRec, i);
@@ -985,6 +1054,58 @@ begin
     PFCBExtents16(@FCBExts[0])^[Index]:=lo(Value);
 end;
 
+function SysgenCPM(NameIn, NameOut:string; FsIn,FsOut:TFileStream):integer;	//* sysgen */
+var xJump: TJump;
+    OutPos:integer;
+begin
+  Result:=ERR_WRONG_DPB_CRC;
+  SetLength(ExtentBuf, FsIn.Size+1);
+  FsIn.Read(ExtentBuf[0], FsIn.Size);
+  if DPBcrc(PBootDPB(@ExtentBuf[0])^)<>PBootDPB(@ExtentBuf[0])^.CRC     // exit if input file have not DPB
+    then exit;
+  with PExtBoot(@ExtentBuf[0])^ do
+  try
+    xJump:=DPB.jump;
+    DPB:=BOOT.DPB;                                                      // save DPB info
+    DPB.jump:=xJump;
+    DPB.CRC:=DPBcrc(DPB);
+    if BOOT.LBLvalid and
+      (XorCRC(LBL,sizeof(LBL))=SLBL) then                               // if Volume Label exists on InpFile and on DestImage
+    begin
+      LBL:=BOOT.LBL;                                                    // then save it on DestImage
+      SLBL:=BOOT.SLBL;
+    end;
+    if BOOT.UNMvalid and
+      (XorCRC(@UNM[0,0], sizeof(UNM))=SUNM) then                        // if User Names exists on InpFile and on DestImage
+    begin
+      UNM:=BOOT.UNM;                                                    // then save it on DestImage
+      SUNM:=BOOT.SUNM;
+    end;
+    if BOOT.TIMvalid and
+      (XorCRC(PChar(@TIM),sizeof(TIM))=STIM) then                       // if FileDates exists on InpFile and on DestImage
+    begin
+      TIM:=BOOT.TIM;                                                    // then save it on DestImage
+      STIM:=BOOT.STIM;
+    end;
+    OutPos:=FsOut.Position;
+    FsOut.Write(ExtentBuf[0], FsIn.Size);                               // write system
+    if (FsIn.Size)<(PhySectorSize*BOOT.DPB.Sec*BOOT.DPB.Off - sizeof(TSystemBinRec)) then begin
+      FillChar(BOOT.SystemBinRec, sizeof(BOOT.SystemBinRec), 0);
+      StrPLCopy(BOOT.SystemBinRec.Name, ExtractFileName(NameIn), sizeof(BOOT.SystemBinRec.Name)-1);
+      BOOT.SystemBinRec.Size:=FsIn.Size;
+      BOOT.SystemBinRec.Date:=FileGetDate(FsIn.Handle);
+      BOOT.SystemBinRec.CRC:=DPBcrc(PBootDPB(@BOOT.SystemBinRec)^);
+      BOOT.SystemBinValid:=True;
+      FsOut.Seek(PhySectorSize*BOOT.DPB.Sec*BOOT.DPB.Off - sizeof(TSystemBinRec) + OutPos, soFromBeginning);
+      FsOut.Write(BOOT.SystemBinRec, sizeof(BOOT.SystemBinRec));
+    end;
+    result:=0;
+    GetBOOT(NameOut, FSOut, -1);
+  except
+    Result:=ERR_FILE_SEEK;
+  end;
+end;
+
 function OdiFilePack(OdiArchiveName, SrcFileName, ArchFileName: string):integer;
 var FS, FSSrc: TFileStream;
     FCB: TFCB;
@@ -999,36 +1120,48 @@ begin
     ArchFileName:=trim(ArchFileName);
     if ArchFileName='' then
       ArchFileName:=SrcFileName;
-    FCB.User:=ExtractFileUser(ArchFileName) and $0F;
-    StrPLCopy(FCB.FileName, padr(chrtran(ChangeFileExt(AnsiUpperCase(ExtractFileName(ArchFileName)), '.'), ' .', '_'), 8, ' '), 8);
-    if FCB.FileName[0]=' ' then
-    begin
-      Result:=0;
-      exit;
-    end;
-    StrPLCopy(@FCB.FileName[8], padr(chrtran(AnsiUpperCase(ExtractFileExt(ArchFileName)), ' .', '_'), 3, ' '), 3);
-    Attr:=FileGetAttr(SrcFileName);
-    if Attr and faReadOnly <> 0 then
-      FCB.FileName[8]:=chr(ord(FCB.FileName[8]) or $80);
-    if Attr and faHidden <> 0 then
-      FCB.FileName[9]:=chr(ord(FCB.FileName[9]) or $80);
-    FSSrc:=TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
-    Result:=ERR_NO_DISK_SPACE;
-    off:=0; Attr:=0;
-    FExists:=OdiFileExists(ArchFileName, i);
-    if FExists then
-    begin
-      off:=PFileRec(FileList.Items[i])^.FileSize;
-      Attr:=(PFileRec(FileList.Items[i])^.FileSize+LogBlockSize-1) div (ExtentSize*ExtentsInFCB);  // *8 ??? or *ExtentsInFCB ???
-    end;
-    if (FSSrc.Size<=OdiFreeDiskSpace()+off) then
-    begin
-      Result:=ERR_NO_DIR_SPACE;
-      if ((FSSrc.Size+LogBlockSize-1) div (ExtentSize*ExtentsInFCB) <= OdiFreeDirSpace()+Attr) then  // *8 ??? or *ExtentsInFCB ???
-      begin
-        Result:=ERR_PACK_FILE;
-        if FExists then
-          OdiFileDelete(OdiArchiveName, ArchFileName);
+    FCB.User:=ExtractFileUser(ArchFileName);
+    if FCB.User = SystemUser then begin
+      Result:=ERR_NO_DISK_SPACE;
+      FSSrc:=TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
+      if (FSSrc.Size>sizeof(TAltBOOT))and(FSSrc.Size<=PhySectorSize*BOOT.DPB.Sec*BOOT.DPB.Off)and BOOT.BOOTvalid then begin
+        FS:=TFileStream.Create(OdiArchiveName, fmOpenReadWrite or fmShareDenyWrite);
+        FSSrc.Seek(0, soFromBeginning);
+        FS.Seek(PartitionOffset, soFromBeginning);
+        Result:=SysgenCPM(SrcFileName,OdiArchiveName,FSSrc,FS);
+      end;
+    end
+    else begin
+     FCB.User := FCB.User and $0F;
+     StrPLCopy(FCB.FileName, padr(chrtran(ChangeFileExt(AnsiUpperCase(ExtractFileName(ArchFileName)), '.'), ' .', '_'), 8, ' '), 8);
+     if FCB.FileName[0]=' ' then
+     begin
+       Result:=0;
+       exit;
+     end;
+     StrPLCopy(@FCB.FileName[8], padr(chrtran(AnsiUpperCase(ExtractFileExt(ArchFileName)), ' .', '_'), 3, ' '), 3);
+     Attr:=FileGetAttr(SrcFileName);
+     if Attr and faReadOnly <> 0 then
+       FCB.FileName[8]:=chr(ord(FCB.FileName[8]) or $80);
+     if Attr and faHidden <> 0 then
+       FCB.FileName[9]:=chr(ord(FCB.FileName[9]) or $80);
+     FSSrc:=TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
+     Result:=ERR_NO_DISK_SPACE;
+     off:=0; Attr:=0;
+     FExists:=OdiFileExists(ArchFileName, i);
+     if FExists then
+     begin
+       off:=PFileRec(FileList.Items[i])^.FileSize;
+       Attr:=(PFileRec(FileList.Items[i])^.FileSize+LogBlockSize-1) div (ExtentSize*ExtentsInFCB);  // *8 ??? or *ExtentsInFCB ???
+     end;
+     if (FSSrc.Size<=OdiFreeDiskSpace()+off) then
+     begin
+       Result:=ERR_NO_DIR_SPACE;
+       if ((FSSrc.Size+LogBlockSize-1) div (ExtentSize*ExtentsInFCB) <= OdiFreeDirSpace()+Attr) then  // *8 ??? or *ExtentsInFCB ???
+       begin
+         Result:=ERR_PACK_FILE;
+         if FExists then
+           OdiFileDelete(OdiArchiveName, ArchFileName);
         FS:=TFileStream.Create(OdiArchiveName, fmOpenReadWrite or fmShareDenyWrite);
         FSSrc.Seek(0, soFromBeginning);
         while FSSrc.Position<FSSrc.Size do
@@ -1078,7 +1211,8 @@ begin
         end;
         Result:=0;
         FileSetTime(FileList, ArchFileName, FileGetDate(FSSrc.Handle));
-      end;
+       end;
+     end;
     end;
   finally
     if Assigned(FS) then FS.Free;

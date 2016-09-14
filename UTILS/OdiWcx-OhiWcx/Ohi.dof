@@ -50,18 +50,18 @@ DebugSourceDirs=
 UsePackages=0
 [Parameters]
 RunParams=
-HostApplication=C:\doublecmd\doublecmd.exe
+HostApplication=C:\Program Files (x86)\Total Commander\Totalcmd.exe
 [Language]
 ActiveLang=
 ProjectLang=$00000419
 RootDir=
 [Version Info]
 IncludeVerInfo=1
-AutoIncBuild=0
+AutoIncBuild=1
 MajorVer=1
 MinorVer=0
-Release=2
-Build=0
+Release=3
+Build=4
 Debug=0
 PreRelease=0
 Special=0
@@ -72,11 +72,11 @@ CodePage=1251
 [Version Info Keys]
 CompanyName=
 FileDescription=OHI (OrionHddImage CP/M filesystem) archiver plugin
-FileVersion=1.0.2.0
+FileVersion=1.0.3.4
 InternalName=Ohi.wcx
-LegalCopyright=Copyright © 2008 Sergey M. Akimov
+LegalCopyright=Copyright © 2016 Sergey A.
 LegalTrademarks=
 OriginalFilename=Ohi.wcx
 ProductName=Ohi.wcx
-ProductVersion=1.02  FREEWARE
-Comments=Requires Total Commander 5.5+
+ProductVersion=1.03  FREEWARE
+Comments=Requires Total Commander 5.5+ (DoubleCommander)

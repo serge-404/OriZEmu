@@ -87,6 +87,11 @@ const
   MBR_Table = 446;
   MBR_PART_TYPE	= 4;
 
+  PhySectorSize = 512;
+  SystemSector = 'UseThis_ToAccess_MBR';
+  SystemMBR = 'mbr.bin';
+  SystemPartN = $FF;
+
   ZBootLoader: array [0..433] of byte =(
 $C3, $08, $00, $00, $EE, $00, $00, $00, $0E, $05, $11, $1E, $F3, $AF, $12, $0D,
 $28, $5D, $41, $26, $01, $3E, $02, $D6, $10, $10, $FC, $6F, $3E, $52, $BE, $20,
@@ -397,8 +402,9 @@ end;
 function ExtractPartNum(FName: string): byte;     // 'PARTITION_1\USER_12\filename.ext' -> 1
 var i: integer;
 begin
-  Result:=$FF;
+  Result:=SystemPartN;
   i:=1;
+  if pos(SystemSector+'\',FName)<>0 then exit;
   while (i<Length(FName)) and (not (FName[i] in ['0'..'9'])) do inc(i);
   if Length(FName)>0 then
     Result:=StrTointDef(copy(FName, i, 1), $FF);
@@ -416,7 +422,7 @@ begin
   try
     DisposeFileList(FileList);
     Partitions.ArcFName:=OhiArchiveName;
-    if Partitions.MBRScheme then
+    if Partitions.MBRScheme then begin
       for j:=0 to Partitions.Count-1 do with Partitions[j] do
       begin
         new(PFRec);
@@ -447,6 +453,25 @@ begin
           end;
         end;
       end;
+     new(PFRec);                                 // 20160909 Special catalog for sysgen (access MBR)
+     with PFRec^ do
+     begin
+      FileName:=SystemSector;
+      FileSize:=0;
+      FileTime:=0;
+      FileAttr:=faDirectory;
+     end;
+     FileList.Add(PFRec);
+     new(PFRec);                                 // 0160909 Special file for sysgen (access MBR)
+     with PFRec^ do
+     begin
+        FileName:=SystemSector+'\'+SystemMBR;
+        FileSize:=PhySectorSize;
+        FileTime:=0;                            // FileGetDate(FSSrc.Handle)
+        FileAttr:=faSysFile;
+      end;
+      FileList.Add(PFRec);
+    end;
     if Res and Partitions.MBRScheme then Result:=0;
   except
     Result:=-1;
@@ -692,13 +717,17 @@ begin
     if Pos('\',FileName)>0 then begin                                   // 20160726
       PartN:=ExtractPartNum( FileName );
       xHeaderData:=HeaderData;
-      Partitions[PartN].FFuncSet.FReadHeader(hArcData, xHeaderData);
+      if PartN<SystemPartN then
+        Partitions[PartN].FFuncSet.FReadHeader(hArcData, xHeaderData);
     end;
   end;
 end;
 
 function ProcessFile(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
 var PartN: integer;
+    OutName: string;
+    FS, FSOut: TFileStream;
+    TmpBuf:array[0..PhySectorSize] of byte;
 begin
   if FileListPos = FileList.Count+1 then
     Result := E_END_ARCHIVE
@@ -708,7 +737,30 @@ begin
       Result := 0
     else begin
       PartN:=ExtractPartNum( PFileRec(FileList.Items[FileListPos-1])^.FileName );
-      Result:=Partitions[PartN].FFuncSet.FProcessFile(hArcData, Operation, DestPath, DestName);
+      if PartN=SystemPartN then begin                                                  // MBR access
+        if Assigned(DestPath) then
+          OutName:=AddSlash(StrPas(DestPath))+StrPas(DestName)
+        else
+          OutName:=StrPas(DestName);
+        Result:=ERR_FILE_OPEN;
+        FS:=nil;
+        FSOut:=nil;
+        try
+          FS:=TFileStream.Create(ArcFileName, fmOpenRead or fmShareDenyWrite);
+          FSOut:=TFileStream.Create(OutName, fmCreate);
+          FS.Seek(0, soFromBeginning);
+          FS.Read(TmpBuf, PhySectorSize);
+          FSOut.Write(TmpBuf, PhySectorSize);
+          Result:=0;
+        finally
+          if Assigned(FS) then FS.Free;
+          if Assigned(FSOut) then FSOut.Free;
+        end;
+      end
+      else begin                                                                       // partitions access
+        if PartN<SystemPartN then
+          Result:=Partitions[PartN].FFuncSet.FProcessFile(hArcData, Operation, DestPath, DestName);
+      end
     end;
   end;
 end;
@@ -720,6 +772,8 @@ end;
 
 function PackFiles(PackedFile, SubPath, SrcPath, AddList: PChar; Flags: integer): integer; stdcall;
 var PartNum:byte;
+    FS, FSOut: TFileStream;
+    TmpBuf:array[0..PhySectorSize] of byte;
 begin
   Result := E_UNKNOWN_FORMAT;
   if not FileExists(PackedFile) then
@@ -727,9 +781,24 @@ begin
   if OhiGetCatalog(PackedFile)>=0 then
   begin
     PartNum:=ExtractPartNum( AddSlash(StrPas(SubPath))+AddList );
-    if (PartNum=$FF) or ((SubPath=nil)and(pos('\',string(AddList))=0)) then
-      PartNum:=0;
-    Result:=Partitions[ PartNum ].FFuncSet.FPackFiles(PackedFile, SubPath, SrcPath, AddList, Flags);
+    if (PartNum=SystemPartN) then
+    try                                         // write MBR.bin
+      FS:=TFileStream.Create(AddSlash(StrPas(SrcPath))+AddList, fmOpenRead or fmShareDenyWrite);
+      FSOut:=TFileStream.Create(string(PackedFile), fmOpenReadWrite or fmShareDenyWrite);
+      FSOut.Read(TmpBuf, PhySectorSize);
+      FS.Read(TmpBuf, PhySectorSize-(16*4 + 2));
+      FSOut.Seek(0, soFromBeginning);
+      FSOut.Write(TmpBuf, PhySectorSize);
+      Result:=0;
+    finally
+      if Assigned(FS) then FS.Free;
+      if Assigned(FSOut) then FSOut.Free;
+    end
+    else begin
+      if (SubPath=nil)and(pos('\',string(AddList))=0) then
+        PartNum:=0;
+      Result:=Partitions[ PartNum ].FFuncSet.FPackFiles(PackedFile, SubPath, SrcPath, AddList, Flags);
+    end;
   end;
 end;
 
