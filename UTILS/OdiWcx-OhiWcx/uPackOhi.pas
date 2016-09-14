@@ -468,7 +468,7 @@ begin
         FileName:=SystemSector+'\'+SystemMBR;
         FileSize:=PhySectorSize;
         FileTime:=0;                            // FileGetDate(FSSrc.Handle)
-        FileAttr:=faSysFile;
+        FileAttr:=0;                            // faSysFile;
       end;
       FileList.Add(PFRec);
     end;
