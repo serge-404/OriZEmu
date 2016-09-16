@@ -782,14 +782,21 @@ begin
   begin
     PartNum:=ExtractPartNum( AddSlash(StrPas(SubPath))+AddList );
     if (PartNum=SystemPartN) then
-    try                                         // write MBR.bin
+    try                                                                                         // write MBR.bin
       FS:=TFileStream.Create(AddSlash(StrPas(SrcPath))+AddList, fmOpenRead or fmShareDenyWrite);
       FSOut:=TFileStream.Create(string(PackedFile), fmOpenReadWrite or fmShareDenyWrite);
-      FSOut.Read(TmpBuf, PhySectorSize);
-      FS.Read(TmpBuf, PhySectorSize-(16*4 + 2));
-      FSOut.Seek(0, soFromBeginning);
-      FSOut.Write(TmpBuf, PhySectorSize);
-      Result:=0;
+      FS.Read(TmpBuf, PhySectorSize);
+      Result := ERR_FILE_STRU;
+      if (FS.Size>=PhySectorSize)and(TmpBuf[$1FE]=$55)and(TmpBuf[$1FF]=$AA) then begin          // if valid MBR file
+        FSOut.Read(TmpBuf, PhySectorSize);
+        FS.Seek(0, soFromBeginning);
+        FS.Read(TmpBuf, PhySectorSize-(16*4 + 2));
+        TmpBuf[$1FE]:=$55;
+        TmpBuf[$1FF]:=$AA;
+        FSOut.Seek(0, soFromBeginning);
+        FSOut.Write(TmpBuf, PhySectorSize);
+        Result:=0;
+      end;
     finally
       if Assigned(FS) then FS.Free;
       if Assigned(FSOut) then FSOut.Free;
