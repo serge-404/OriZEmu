@@ -38,8 +38,7 @@ const
   FMC_ADDR51  = $51;         // addres CMOS - Orion-Pro
   K512viF760  = 1;
   K512vi50    = 2;
-  DS1302F760  = 3;
-  DS1302_50   = 4;
+  DS1307      = 3;
 
   last_day: array[0..11] of byte = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
 

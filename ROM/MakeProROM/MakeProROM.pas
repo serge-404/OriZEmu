@@ -18,14 +18,16 @@ type
     OpenORDDialog: TOpenDialog;
     bbtnUP: TBitBtn;
     bbtnDown: TBitBtn;
+    btnClean: TButton;
     procedure btnORDFilesClick(Sender: TObject);
     procedure btnMakeClick(Sender: TObject);
     procedure bntROM2FileClick(Sender: TObject);
     procedure btnCancelClick(Sender: TObject);
     procedure bbtnUPClick(Sender: TObject);
     procedure bbtnDownClick(Sender: TObject);
+    procedure btnCleanClick(Sender: TObject);
   private
-    { Private declarations }
+    function MakeCommon(FilesCnt:integer):boolean;
   public
     { Public declarations }
   end;
@@ -35,6 +37,9 @@ const
 
 var
   Form1: TForm1;
+  ROM2BIOS: array [$0..$2000] of char;
+  sst: string;
+  cnt: integer;
 
 implementation
 
@@ -67,17 +72,18 @@ begin
  if a<b then Result:=a else Result:=b;
 end;
 
-procedure TForm1.btnMakeClick(Sender: TObject);
+function TForm1.MakeCommon(FilesCnt:integer):boolean;
 var FStream: TFileStream;
     ROM2BIOS: array [$0..$2000] of char;
-    sst: string;
-    i,cnt,next_ordos, datasize:integer;
+    i,next_ordos, datasize:integer;
 begin
   cnt:=0;
   sst:='';
   next_ordos:=0;
+  Result:=False;
   FillChar(ROM2BIOS, SizeOf(ROM2BIOS), $FF);
-  for i:=0 to lbORDFiles.Items.Count-1 do
+  i:=0;
+  while i<FilesCnt do begin
     if FileExists(lbORDFiles.Items[i]) and (next_ordos<sizeof(ROM2BIOS)-33) then
     begin
       FStream:=nil;
@@ -96,6 +102,8 @@ begin
       end;
       FStream.Free;
     end;
+    inc(i);
+  end;
   if FileExists(trim(edROM2File.Text)) then begin
     FStream:=TFileStream.Create(trim(edROM2File.Text), fmOpenReadWrite or fmShareDenyWrite);
     FStream.Seek($4D80, soFromBeginning	);
@@ -103,10 +111,23 @@ begin
     FStream.Seek($1270, soFromBeginning	);
     FStream.WriteBuffer(ROM2BIOS[$1270], $D80);
     FStream.Free;
-    Application.MessageBox(StrFmt(ROM2BIOS,'%d Ordos files -'#13#10'%s'#13#10'writted to ROM2 PRO BIOS file'#13#10'%s'#13#10#10'at positions 4D80h..5FEFh, 1270h..1FEFh', [cnt, PChar(sst), PChar(edROM2File.Text)]), 'Done', MB_OK);
-  end;
+    Result:=True;
+  end
+  else
+    Application.MessageBox(PChar('Not found ROM2 PRO BIOS file: '+edROM2File.Text), 'Error', MB_OK+MB_ICONWARNING);
 end;
 
+procedure TForm1.btnMakeClick(Sender: TObject);
+begin
+  if MakeCommon(lbORDFiles.Items.Count) then
+    Application.MessageBox(StrFmt(ROM2BIOS,'%d Ordos files -'#13#10'%s'#13#10'writted to ROM2 PRO BIOS file'#13#10'%s'#13#10#10'at positions 4D80h..5FEFh, 1270h..1FEFh', [cnt, PChar(sst), PChar(edROM2File.Text)]), 'Done', MB_OK);
+end;
+
+procedure TForm1.btnCleanClick(Sender: TObject);
+begin
+  if MakeCommon(0) then
+    Application.MessageBox(StrFmt(ROM2BIOS,'ROM2 PRO BIOS file'#13#10'%s'#13#10#10'cleaned(FF) at positions 4D80h..5FEFh, 1270h..1FEFh', [PChar(edROM2File.Text)]), 'Done', MB_OK);
+end;
 
 procedure TForm1.btnCancelClick(Sender: TObject);
 begin

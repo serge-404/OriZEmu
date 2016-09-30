@@ -858,15 +858,15 @@ begin
              lo(FDC_ADDR1), lo(FDC_ADDR2): Result:=FDController[Index and 3];
              lo(RGU_ADDR1), lo(RGU_ADDR2): Result:=FDController.RGU;
              lo(FMC_ADDR60), lo(SD_ADDR0), lo(SD_ADDR1), lo(UART_ADDR0), lo(UART_ADDR1):
-             if (Z80CardMode<Z80_ORIONPRO_v2) then
+             if (Z80CardMode<Z80_ORIONPRO_v2)or(Z80CardMode>=Z80_ORIONPRO_v320) then
                case Index of
                  FMC_ADDR60: case RTCmode of
                                K512viF760: Result:=F146818.Addr;
-                               DS1302F760: ;
+                               DS1307: ;
                              end;
                  FMC_DATA61: case RTCmode of
                                K512viF760: Result:=F146818[F146818.Addr];
-                               DS1302F760: ;
+                               DS1307: ;
                              end;
                  SD_ADDR0: Result:=SDController.Port0;
                  SD_ADDR1: Result:=SDController.Port1;
@@ -913,15 +913,15 @@ begin
              lo(FDC_ADDR1), lo(FDC_ADDR2): FDController.Reg[Index and 3]:=Value;
              lo(RGU_ADDR1), lo(RGU_ADDR2): FDController.RGU:=Value;
              lo(FMC_ADDR60), lo(SD_ADDR0), lo(SD_ADDR1), lo(UART_ADDR0), lo(UART_ADDR1):
-             if (Z80CardMode<Z80_ORIONPRO_v2) then
+             if (Z80CardMode<Z80_ORIONPRO_v2)or(Z80CardMode>=Z80_ORIONPRO_v320) then
                case Index of
                  FMC_ADDR60: case RTCmode of
                                K512viF760: F146818.Addr:=Value;
-                               DS1302F760: ;
+                               DS1307: ;
                              end;
                  FMC_DATA61: case RTCmode of
                                K512viF760:  F146818[F146818.Addr]:=Value;
-                               DS1302F760: ;
+                               DS1307: ;
                              end;
                  SD_ADDR0: SDController.Port0:=Value;
                  SD_ADDR1: SDController.Port1:=Value;
@@ -939,21 +939,25 @@ procedure outb(port : integer; outbyte : integer);
 var bb, pF9: byte;
     loport:integer;
 begin
-  if Z80CardMode>=Z80_ORIONPRO_v2 then begin                   // Orion-PRO
-    case Lo(Port) of
+  if (Z80CardMode>=Z80CARD_MAXIMAL) then begin   // Orion-PRO IDE-RTC card also available for advanced O-128 configuration
+    if (Z80CardMode>=Z80_ORIONPRO_v2) then begin                   // Orion-PRO
+     case Lo(Port) of
       $08: if outbyte>=RAMPagesCount then outbyte:=outbyte mod RAMPagesCount;
       $10..$14: RAMPORTSet(FDC_ADDR1+Lo(Port), outbyte);       // FDD
       $18..$1B: RAMPORTSet(KBD_ADDR0+Lo(Port)-$18, outbyte);   // BB55 (i8255) - keyboard
       $28..$2B: RAMPORTSet(ROMD_ADDR0+Lo(Port)-$28, outbyte);  // BB55 (i8255) - Rom-Disk
       $3E: AYWriteReg(glSoundRegister, outbyte);               // запись данных муз. процессора
       $3F: glSoundRegister := outbyte And $F;                  // запись номера регистра муз. процессора
+     end;
+    end;
+    case Lo(Port) of
       FMC_DATA50: case RTCmode of
                     K512vi50:  F146818[F146818.Addr]:=outbyte;
-                    DS1302_50: ;
+                    DS1307: ;
                   end;
       FMC_ADDR51: case RTCmode of
                     K512vi50: F146818.Addr:=outbyte;
-                    DS1302_50: ;
+                    DS1307: ;
                   end;
       pro_control,    // registr uprawleniq         - W
       pro_data_h,     // st.bajt registra dannyh    - WR
@@ -1015,21 +1019,25 @@ Function inb(port : integer) : integer;
 var loport, pF9: integer;
 begin
   Result := $FF;
-  if Z80CardMode>=Z80_ORIONPRO_v2 then begin                    // Orion-PRO
-    case Lo(Port) of
+  if (Z80CardMode>=Z80CARD_MAXIMAL) then begin   // Orion-PRO IDE-RTC card also available for advanced O-128 configuration
+    if Z80CardMode>=Z80_ORIONPRO_v2 then begin                    // Orion-PRO
+     case Lo(Port) of
       $0:       Result:=lo(OrionPRO_DIP_SW);
       $01..$0B: Result:=MainPort[Lo(Port)];
       $10..$14: Result:=RAMPORTGet(FDC_ADDR1+Lo(Port));   // FDD
       $18..$1B: Result:=RAMPORTGet(KBD_ADDR0+Lo(Port));   // BB55 (i8255) - keyboard
       $28..$2B: Result:=RAMPORTGet(ROMD_ADDR0+Lo(Port));  // BB55 (i8255) - Rom-Disk
       $3F: Result := AYPSG.Regs[glSoundRegister];         // чтение данных муз. процессора
+     end;
+    end;
+    case Lo(Port) of
       FMC_DATA50: case RTCmode of
                     K512vi50:  Result:=F146818[F146818.Addr];
-                    DS1302_50: ;
+                    DS1307: ;
                   end;
       FMC_ADDR51: case RTCmode of
                     K512vi50: Result:=F146818.Addr;
-                    DS1302_50: ;
+                    DS1307: ;
                   end;
       pro_astatus,    // alxt.registr sostoqniq     -  R
       pro_data_h,     // st.bajt registra dannyh    - WR

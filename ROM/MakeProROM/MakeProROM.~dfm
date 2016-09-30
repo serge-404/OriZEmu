@@ -18,10 +18,10 @@ object Form1: TForm1
   object btnMake: TButton
     Left = 16
     Top = 216
-    Width = 225
+    Width = 209
     Height = 33
     Anchors = [akLeft, akBottom]
-    Caption = 'Install ORD into ROM'
+    Caption = 'Install ORD into the ROM'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -13
@@ -45,7 +45,7 @@ object Form1: TForm1
     Font.Style = [fsBold]
     ModalResult = 2
     ParentFont = False
-    TabOrder = 2
+    TabOrder = 3
     OnClick = btnCancelClick
   end
   object btnORDFiles: TButton
@@ -76,7 +76,7 @@ object Form1: TForm1
     Font.Style = [fsBold]
     ItemHeight = 20
     ParentFont = False
-    TabOrder = 3
+    TabOrder = 4
   end
   object edROM2File: TEdit
     Left = 160
@@ -90,7 +90,7 @@ object Form1: TForm1
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsBold]
     ParentFont = False
-    TabOrder = 4
+    TabOrder = 5
     Text = '.\ROM\ROM2-321.ROM '
   end
   object bntROM2File: TButton
@@ -105,7 +105,7 @@ object Form1: TForm1
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsBold]
     ParentFont = False
-    TabOrder = 5
+    TabOrder = 6
     OnClick = bntROM2FileClick
   end
   object bbtnUP: TBitBtn
@@ -114,7 +114,7 @@ object Form1: TForm1
     Width = 49
     Height = 41
     Caption = 'UP'
-    TabOrder = 6
+    TabOrder = 7
     OnClick = bbtnUPClick
   end
   object bbtnDown: TBitBtn
@@ -123,21 +123,37 @@ object Form1: TForm1
     Width = 49
     Height = 41
     Caption = 'DOWN'
-    TabOrder = 7
+    TabOrder = 8
     OnClick = bbtnDownClick
+  end
+  object btnClean: TButton
+    Left = 248
+    Top = 216
+    Width = 201
+    Height = 33
+    Anchors = [akLeft, akBottom]
+    Caption = 'Clean place in the ROM'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'MS Sans Serif'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 2
+    OnClick = btnCleanClick
   end
   object OpenROM2Dialog: TOpenDialog
     Filter = 'ROM|*.ROM|BIN|*.BIN'
     Options = [ofEnableSizing]
     Title = 'Select file with ROM2 BIOS code'
-    Left = 360
+    Left = 456
     Top = 224
   end
   object OpenORDDialog: TOpenDialog
     Filter = 'ORD|*.ORD|BRU|*.BRU'
     Options = [ofAllowMultiSelect, ofEnableSizing]
     Title = 'Select ORD,BRU files (max 8kb total) to place into ROM2 BIOS'
-    Left = 456
+    Left = 496
     Top = 224
   end
 end
