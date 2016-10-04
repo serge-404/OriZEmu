@@ -601,7 +601,7 @@ begin
     ide_cyl_msb  : FLsbr:=hi(FReg.reg_cyl);
     ide_head     : FLsbr:=FReg.reg_head;
     ide_status, ide_astatus : FLsbr:=FReg.reg_status
-    else raise Exception.CreateFmt('IdeRead: not supported register address: %d', [FCtl]);
+    else ; // raise Exception.CreateFmt('IdeRead: not supported register address: %d', [FCtl]);
    end;
 end;
 
@@ -668,7 +668,7 @@ begin
                     else if (FLsb=ide_cmd_seek) and IdeSeek() then
                       IdeCommandOk();
                   end;
-    else raise Exception.CreateFmt('IdeWrite: not supported register address: %d', [FCtl]);
+    else ; //raise Exception.CreateFmt('IdeWrite: not supported register address: %d', [FCtl]);
    end;
   end;
 end;
