@@ -250,18 +250,22 @@ type
              end;
   PFileRec = ^TFileRec;
 
+  TVars = record
+    FileList: TList;
+    Partitions: TPartitions;
+    TmpBuf: array[0..512] of byte;
+    TmpBuf1k: array[0..1024] of byte;
+    FileListPos: integer;
+    DefaultFSsize: integer;    // 16Mb
+    DefaultOScode: string;
+    ArcFileName: string;
+    IniFileName: string;
+    BootDPB: TBootDPB;
+  end;
+  PVars = ^TVars;
+  
 var
-  FileList: TList;
-  Partitions: TPartitions;
-  TmpBuf: array[0..512] of byte;
-  TmpBuf1k: array[0..1024] of byte;
-  FileListPos: integer = 0;
-  DefaultFSsize: integer = 16777216;    // 16Mb
-  DefaultOScode: string;
-  ArcFileName: string;
-  IniFileName: string;
-  BootDPB: TBootDPB;
-
+  Vars: PVars;
 
 procedure DebugInfo(str: string);
 {$IFDEF DEBUG}
@@ -322,6 +326,7 @@ end;
 function GetPrivateString(SectionName,KeyName,DefaultValue:string):string;
 var buf:array[0..1024] of char;
 begin
+  with Vars^ do
    GetPrivateProfileString(PChar(SectionName),PChar(KeyName),PChar(DefaultValue),
                            buf,sizeof(buf)-1,PChar(IniFileName));
    Result:=trim(StrPas(Buf));
@@ -329,17 +334,20 @@ end;
 
 function GetPrivateInt(SectionName,KeyName:string;DefaultValue:Integer):integer;
 begin
+  with Vars^ do
    Result:=GetPrivateProfileInt(PChar(SectionName),PChar(KeyName),DefaultValue,PChar(IniFileName));
 end;
 
 function WritePrivateString(SectionName,KeyName,Value:string):boolean;
 begin
+  with Vars^ do
    Result:=WritePrivateProfileString(PChar(SectionName), PChar(KeyName),
                                      PChar(Value), PChar(IniFileName));
 end;
 
 function WritePrivateInt(SectionName,KeyName:string;Value:Integer):boolean;
 begin
+  with Vars^ do
    Result:=WritePrivateProfileString(PChar(SectionName),PChar(KeyName),
                                      PChar(IntToStr(Value)),PChar(IniFileName));
 end;
@@ -419,7 +427,7 @@ var j: integer;
 begin
   Res:=True;
   Result:=-1;
-  try
+  with Vars^ do try
     DisposeFileList(FileList);
     Partitions.ArcFName:=OhiArchiveName;
     if Partitions.MBRScheme then begin
@@ -499,7 +507,10 @@ end;
 destructor TPartition.Destroy;
 begin
   if FLibHandle<>0 then
+  begin
     FreeLibrary(FLibHandle);
+    FLibHandle:=0;
+  end;
   inherited Destroy;
 end;
 
@@ -591,6 +602,7 @@ var liblst, lib: string;
     FuncSet: TFuncSet;
     libHandle:HMODULE;
 begin
+ with Vars^ do begin
   liblst:=TPartitions(Collection).LibList;
   while liblst<>'' do begin
     lib:=LeftSubstr(liblst);
@@ -612,6 +624,7 @@ begin
     else
       FreeLibrary(libHandle);
   end;
+ end;
 end;
 
 { TPartitions }
@@ -645,11 +658,12 @@ procedure TPartitions.SetArcFName(FName: string);
 var i, pt: integer;
     FS: TFileStream;
 begin
+ with Vars^ do begin
   FName:=trim(FName);
   if FArcFName<>FName then
   begin
      FArcFName:=FName;
-     for i:=0 to Count-1 do delete(i);
+     for i:=Count-1 downto 0 do delete(i);
      FS:=nil;
      try
        FS:=TFileStream.Create(FName, fmOpenReadWrite or fmShareDenyWrite);
@@ -664,6 +678,7 @@ begin
        if TmpBuf[i*16+ pt + MBR_PART_TYPE]<>0 then                      // nondelete partitions
          AddPartition( PArray16(@TmpBuf[i*16+ pt]) );
   end;
+ end;
 end;
 
 procedure TPartitions.SetItem(Index: Integer; Value: TPartition);
@@ -682,6 +697,7 @@ end;
 
 function OpenArchive(var ArchiveData: TOpenArchiveData): THandle; stdcall;
 begin
+ with Vars^ do begin
   FileListPos := 0;
   ArcFileName := StrPas(ArchiveData.ArcName);
   if not FileExists(ArcFileName) then
@@ -693,12 +709,14 @@ begin
     ArchiveData.OpenResult := E_UNKNOWN_FORMAT;
     Result := 0;
   end;
+ end;
 end;
 
 function ReadHeader(hArcData: THandle; var HeaderData: THeaderData): integer; stdcall;
 var PartN: integer;
     xHeaderData: THeaderData;
 begin
+ with Vars^ do begin
   inc(FileListPos);
   if FileListPos = FileList.Count+1 then
   begin
@@ -721,6 +739,7 @@ begin
         Partitions[PartN].FFuncSet.FReadHeader(hArcData, xHeaderData);
     end;
   end;
+ end;
 end;
 
 function ProcessFile(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
@@ -729,6 +748,7 @@ var PartN: integer;
     FS, FSOut: TFileStream;
     TmpBuf:array[0..PhySectorSize] of byte;
 begin
+ with Vars^ do begin
   if FileListPos = FileList.Count+1 then
     Result := E_END_ARCHIVE
   else
@@ -763,6 +783,7 @@ begin
       end
     end;
   end;
+ end;
 end;
 
 function CloseArchive (hArcData: THandle): integer; stdcall;
@@ -775,6 +796,7 @@ var PartNum:byte;
     FS, FSOut: TFileStream;
     TmpBuf:array[0..PhySectorSize] of byte;
 begin
+ with Vars^ do begin
   Result := E_UNKNOWN_FORMAT;
   if not FileExists(PackedFile) then
     OhiCreateArchive(PackedFile);
@@ -807,14 +829,16 @@ begin
       Result:=Partitions[ PartNum ].FFuncSet.FPackFiles(PackedFile, SubPath, SrcPath, AddList, Flags);
     end;
   end;
+ end;
 end;
 
 function DeleteFiles(PackedFile, DeleteList: PChar): integer; stdcall;
 begin
   Result := E_UNKNOWN_FORMAT;
-  if FileExists(PackedFile) then
-    if OhiGetCatalog(PackedFile)>=0 then
-      Result:=Partitions[ ExtractPartNum( DeleteList ) ].FFuncSet.FDeleteFiles(PackedFile, DeleteList);
+  with Vars^ do
+   if FileExists(PackedFile) then
+     if OhiGetCatalog(PackedFile)>=0 then
+       Result:=Partitions[ ExtractPartNum( DeleteList ) ].FFuncSet.FDeleteFiles(PackedFile, DeleteList);
 end;
 
 function GetPackerCaps: integer; stdcall;
@@ -846,6 +870,7 @@ procedure ConfigurePacker(Parent: HWND; DllInstance:LongWord); stdcall;
 var st: string;
     i: integer;
 begin
+ with Vars^ do begin
   st:='';
   for i:=0 to Partitions.Count-1 do
     with Partitions[i] do
@@ -861,6 +886,7 @@ begin
                            #13#10'Archive: `%s`'+st,
                            [ArcFileName]) ),
              'Information', MB_OK+MB_ICONINFORMATION);
+ end;
 end;
 
 function CpmBootValid(buf: PByte; var crc: byte):boolean;
@@ -892,6 +918,7 @@ var i, readed: integer;
     FS, FSOS: TFileStream;
     psize: integer;                                     { partition size in 512k blocks }
 begin
+ with Vars^ do begin
   Result:=-1;
   readed:=0;
   psize:=DefaultFSsize div 512;
@@ -988,31 +1015,42 @@ begin
     if Assigned(FS) then FS.Free;
     if Assigned(FSOS) then FSOS.Free;
   end;
+ end;
 end;
 
 initialization
-  FileList:=TList.Create;
-  Partitions:=TPartitions.Create;
-  if GetModuleFileName(hInstance, Pchar(@TmpBuf[0]), SizeOf(TmpBuf)-1)>0 then
-    IniFileName:=ChangeFileExt(StrPas(PChar(@TmpBuf[0])), '.INI')
-  else
-    IniFileName:='Ohi.ini';
-  Partitions.LibList:=GetPrivateString(stSectionCommon, stLibList, 'odi.wcx');
-  DefaultOScode:=trim(GetPrivateString(stSectionCommon, stOScode, 'system.hdd'));
-  if ExtractFileName(DefaultOScode)=DefaultOScode then
-    DefaultOScode:=AddSlash(ExtractFilePath(IniFileName))+DefaultOScode;
-  DefaultFSsize:=GetPrivateInt(stSectionCommon, stDefFSSize, 16777216);    // 16Mb
+  new(Vars);
+  with Vars^ do begin
+    fillchar(Vars^,sizeof(TVars),0);  //    FileListPos := 0;
+    DefaultFSsize := 16777216;        // 16Mb
+{}
+    FileList:=TList.Create;
+    Partitions:=TPartitions.Create;
+    if GetModuleFileName(hInstance, Pchar(@TmpBuf[0]), SizeOf(TmpBuf)-1)>0 then
+      IniFileName:=ChangeFileExt(StrPas(PChar(@TmpBuf[0])), '.INI')
+    else
+      IniFileName:='Ohi.ini';
+    Partitions.LibList:=GetPrivateString(stSectionCommon, stLibList, 'odi.wcx');
+    DefaultOScode:=trim(GetPrivateString(stSectionCommon, stOScode, 'system.hdd'));
+    if ExtractFileName(DefaultOScode)=DefaultOScode then
+      DefaultOScode:=AddSlash(ExtractFilePath(IniFileName))+DefaultOScode;
+    DefaultFSsize:=GetPrivateInt(stSectionCommon, stDefFSSize, 16777216);    // 16Mb
+  end;
 
 finalization
-  WritePrivateString(stSectionCommon, stLibList, Partitions.LibList);
-  WritePrivateString(stSectionCommon, stOsCode, DefaultOScode);
-  WritePrivateInt(stSectionCommon, stDefFSSize, DefaultFSsize);
-  Partitions.Free;
-  if Assigned(FileList) then
-  begin
-    DisposeFileList(FileList);
-    FileList.Free;
+  with Vars^ do begin
+    WritePrivateString(stSectionCommon, stLibList, Partitions.LibList);
+    WritePrivateString(stSectionCommon, stOsCode, DefaultOScode);
+    WritePrivateInt(stSectionCommon, stDefFSSize, DefaultFSsize);
+    Partitions.Free;
+    if Assigned(FileList) then
+    begin
+      DisposeFileList(FileList);
+      FileList.Free;
+    end;
   end;
+  fillchar(Vars^,sizeof(TVars),0);
+  dispose(Vars);
 
 end.
 

@@ -209,19 +209,32 @@ type
   TScanCatalogCallBack = function(FS: TStream; SerialN: integer;
                                   var FCB: TFCB; PParam: pointer): boolean;
 
+  TVars = record
+    BOOT: TExtBoot;
+    AllocationMap: TAllocationMap;                                   // global
+    CatalogMap: TAllocationMap;                                      // global
+    FileList: TList;                                                 // global
+    FormatList: TList;
+    PhySectorSize:integer;                                    // global
+    nSides: integer;                                             // global
+    ExtentSize: integer;
+    ExtentsInFCB: integer;
+    LogBlkInExt:integer;
+    ExtentBuf: array of AnsiChar;
+    USE_DPBLESS_DISKS: integer;
+{}
+    TmpBuf: array[0..512] of byte;
+    FileListPos: integer;
+    FileToProcess: string;
+    ArcFileName: string;
+    IniFileName: string;
+    PartitionOffset: DWORD;    {V1.01}
+    PartitionRomOffset: DWORD; {V1.04}
+  end;
+  PVars = ^TVars;
+
 var
-  BOOT: TExtBoot;
-  AllocationMap: TAllocationMap;                                   // global
-  CatalogMap: TAllocationMap;                                      // global
-  FileList: TList;                                                 // global
-  FormatList: TList;
-  PhySectorSize:integer = $400;                                    // global
-  nSides: integer = 2;                                             // global
-  ExtentSize: integer = $800;
-  ExtentsInFCB: integer = 8;
-  LogBlkInExt:integer = 16;
-  ExtentBuf: array of AnsiChar;
-  USE_DPBLESS_DISKS: integer = 1;
+  Vars: PVars;
 
 function GetVolumeName(): string;
 function GetFCBordinalN(FCB:TFCB):integer;
@@ -249,14 +262,6 @@ procedure DisposeFileList(var List: TList);
 procedure GetBOOT(FName: string; FS: TFileStream; FmtN: integer);
 
 implementation
-
-var
-  TmpBuf: array[0..512] of byte;
-  FileListPos: integer = 0;
-  FileToProcess: string;
-  ArcFileName: string;
-  IniFileName: string;
-  PartitionOffset: DWORD;    {V1.01}
 
 {
 ; ‘Œ–Ã¿“ Ã¿——»¬¿ DPB ¬ŒŒ“-—≈ “Œ–¿ (BOOT+8 .. BOOT+1EH)
@@ -426,6 +431,7 @@ var ss, ext, dpb, sys: string;
     PFrmRec: PFormatRec;
     i: integer;
 begin
+ with Vars^ do begin
   USE_DPBLESS_DISKS:=GetPrivateProfileInt('PARAMS', 'USE_DPBLESS_DISKS', 1, PChar(IniFileName));
   GetPrivateProfileString('PARAMS', 'FORMATS_LIST', '',
                           @TmpBuf[0], sizeof(TmpBuf)-1,PChar(IniFileName));
@@ -455,24 +461,28 @@ begin
       FormatList.Add(PFrmRec);
     end;
   end;
+ end;
 end;
 
 function OdiFreeDiskSpace: integer;  // free disk space in bytes
 var i: integer;
     DirOffsetInLogBlocks: integer;
 begin
+ with Vars^ do begin
   Result:=0;
   DirOffsetInLogBlocks:=(BOOT.DPB.DRM+1) div (LogBlkInExt*(LogBlockSize div 32));
   for i:=DirOffsetInLogBlocks to BOOT.DPB.DSM+DirOffsetInLogBlocks-1 do
     if AllocationMap[i]=$FFFF then
       Result:=Result+ExtentSize;
+ end;     
 end;
 
 function OdiFreeDirSpace: integer;  // free catalog space in FCBs
 var i: integer;
 begin
   Result:=0;
-  for i:=0 to BOOT.DPB.DRM do
+  with Vars^ do
+   for i:=0 to BOOT.DPB.DRM do
     if CatalogMap[i]=$FFFF then
       inc(Result);
 end;
@@ -480,6 +490,7 @@ end;
 function GetFreeExtent: integer;
 var DirOffsetInLogBlocks: integer;
 begin
+ with Vars^ do begin
   DirOffsetInLogBlocks:=(BOOT.DPB.DRM+1) div (LogBlkInExt*(LogBlockSize div 32));
   Result:=DirOffsetInLogBlocks;
   while (Result < BOOT.DPB.DSM+DirOffsetInLogBlocks) and
@@ -487,16 +498,19 @@ begin
       inc(Result);
   if Result=BOOT.DPB.DSM+DirOffsetInLogBlocks then
     Result:=-1;
+ end;
 end;
 
 function GetFreeFCB: integer;
 begin
+ with Vars^ do begin
   Result:=0;
   while (Result < BOOT.DPB.DRM + 1) and
         (CatalogMap[Result]<>$FFFF) do
       inc(Result);
   if Result=BOOT.DPB.DRM + 1 then
     Result:=-1;
+ end;
 end;
 
 procedure DisposeFileList(var List: TList);
@@ -527,6 +541,7 @@ end;
 procedure GetBOOT(FName: string; FS: TFileStream; FmtN: integer);
 var d, CalculatedSize: integer;
 begin
+ with Vars^ do begin
   BOOT.SystemBinValid:=False;
   BOOT.Damaged:=False;
   FS.Seek(PartitionOffset, soFromBeginning);                                         {V1.01}
@@ -589,11 +604,13 @@ begin
     FS.Read(BOOT.SystemBinRec, sizeof(BOOT.SystemBinRec));
     BOOT.SystemBinValid:=DPBcrc(PBootDPB(pointer(@BOOT.SystemBinRec))^)=BOOT.SystemBinRec.CRC;
   end;
+ end;
 end;
 
 procedure SetBOOT(OdiArchiveName: string);
 var FS:TFileStream;
 begin
+ with Vars^ do begin
   if BOOT.Damaged then exit;
   FS:=nil;
   try
@@ -607,11 +624,13 @@ begin
   finally
     if Assigned(FS) then FS.Free;
   end;
+ end;
 end;
 
 function GetVolumeName(): string;
 var bb: byte;
 begin
+ with Vars^ do begin
   if BOOT.LBLvalid then
   begin
     bb:=BOOT.CODE[$30];
@@ -621,12 +640,14 @@ begin
   end
   else
     Result:='';
+ end;
 end;
 
 function SetVolumeName(VolName: string): boolean;
 var xsum:byte;
     i: integer;
 begin
+ with Vars^ do begin
   Result:=False;
   if (not BOOT.BOOTvalid) or (not BOOT.LBLvalid) then exit;
   xsum:=BOOT.Code[$30];
@@ -637,6 +658,7 @@ begin
     xsum:=xsum xor ord(BOOT.LBL[i]);
   BOOT.SLBL:=xsum;
   Result:=True;
+ end;
 end;
 
 function ExtractFileUser(FName: string): byte;     // '...\USER_12\filename.ext' -> 12
@@ -668,6 +690,7 @@ end;
 function OdiFileExists(FileNm: string; var i: integer):boolean;    // FileNM like 'USER_0\FILENAME.EXT'
 var usr: integer;
 begin
+ with Vars^ do begin
   usr:=ExtractFileUser(FileNm);
   if usr=$FF then
     usr:=15;
@@ -678,6 +701,7 @@ begin
          (AnsiUpperCase(PFileRec(FileList.Items[i])^.FileName)<>FileNm)) do
     inc(i);
   Result:=i<FileList.Count;
+ end;
 end;
 
 //FileTime = (year - 1980) << 25 | month << 21 | day << 16 | hour << 11 | minute << 5 | second/2;
@@ -685,6 +709,7 @@ end;
 function GetFTime(SN: integer): integer;
 var dhm: integer;
 begin
+ with Vars^ do begin
   Result:=0;
   if (SN>255) or (not BOOT.TIMvalid) then exit;
   with BOOT.TIM[SN] do
@@ -694,6 +719,7 @@ begin
                    or ((YYMM and 15) shl 21)         // month
                    or (dhm shl 5);                   // day, hour, minutes
   end;
+ end;
 end;
 
 procedure SetFTime(SN: integer; FTime: integer);                           // Set file time in BOOT array
@@ -701,6 +727,7 @@ var dhm: word;
     i: integer;
     xsum: byte;
 begin
+ with Vars^ do begin
   if (SN>255) or (not BOOT.TIMvalid) then exit;
   with BOOT.TIM[SN] do
   begin
@@ -713,11 +740,13 @@ begin
   for i:=0 to sizeof(BOOT.TIM)-1 do
     xsum:=xsum xor byte(PChar(@BOOT.TIM)[i]);
   BOOT.STIM:=xsum;
+ end;
 end;
 
 function FileSetTime(List: TList; FName: string; FTime: integer): boolean; // Set file time in BOOT array
 var i, jj: integer;
 begin
+ with Vars^ do begin
   i:=$FFFF;
   Result:=False;
   if BOOT.TIMvalid and
@@ -731,11 +760,13 @@ begin
       Result:=True;
     end;
   end;
+ end;
 end;
 
 function FileGetTime(List: TList; FName: string): integer;                   // Get file time from BOOT array
 var i: integer;
 begin
+ with Vars^ do begin
   i:=$FFFF;
   Result:=0;
   if BOOT.TIMvalid and
@@ -743,6 +774,7 @@ begin
   then with List do
     if Assigned(PFileRec(Items[i])^.FExtents) then
       Result:=GetFTime(PFCBExtent(TList(PFileRec(Items[i])^.FExtents).Items[0])^.SerialN);
+ end;
 end;
 
 function ScanCatalog(OdiArchiveName: string; fmMode: word; ScanCallBack:TScanCatalogCallBack; PParam: pointer): integer;
@@ -753,7 +785,7 @@ var FS: TFileStream;
 begin
   Result:=-1;
   FS:=nil;
-  try
+  with Vars^ do try
     FS:=TFileStream.Create(OdiArchiveName, fmMode or fmShareDenyWrite);
     GetBOOT(OdiArchiveName, FS, -1);
     if not BOOT.BOOTvalid then                                            // wrong CRC
@@ -789,6 +821,7 @@ end;
 
 function GetFCBExtent(var FCBExts:TFCBExtents; Index:integer):integer;  // get block number from FCB
 begin
+ with Vars^ do
   if ExtentsInFCB<16 then
     Result:=FCBExts[Index]
   else
@@ -802,6 +835,7 @@ var
   PFRec: PFileRec;
   PFCBExt: PFCBExtent;
 begin
+ with Vars^ do begin
   Result:=True;
   FName:=PFileRec(FileList.Items[FCB.User])^.FileName+'\';
   FAttr:=0;
@@ -825,7 +859,7 @@ begin
     new(PFRec);
     new(PFCBExt);
     with PFRec^ do
-    begin                            
+    begin
       FileUser:=FCB.User;
       FileName:=FName;
       FileSize:=(GetFCBordinalN(FCB) * 128 + FCB.SizePartial) * LogBlockSize;
@@ -859,13 +893,14 @@ begin
     if FAttr>0 then
       AllocationMap[FAttr]:=word(FIndex);
   end;
+ end;
 end;
 
 function OdiGetCatalog(OdiArchiveName: string):integer;
 var j: integer;
     PFRec: PFileRec;
 begin
-  try
+  with Vars^ do try
     DisposeFileList(FileList);
     FillChar(CatalogMap, sizeof(CatalogMap), $FF);
     FillChar(AllocationMap, sizeof(AllocationMap), $FF);
@@ -939,7 +974,7 @@ begin
     if j=7 then FName:=FName+'.';
   end;
   if (DelUserN=FCB.User) and (AnsiUpperCase(FName)=AnsiUpperCase(DelFName)) then    // delete FCB
-  try
+  with Vars^ do try
     FS.Seek(0-sizeof(FCB), soFromCurrent);
     FS.Write(E5, 1);
     FS.Seek(sizeof(FCB)-1, soFromCurrent);
@@ -980,6 +1015,7 @@ var FS, FSOut: TFileStream;
     i, j, LogSize: integer;
     PFcbExt: PFCBExtent;
 begin
+ with Vars^ do begin
   Result:=ERR_FILE_OPEN;
   FS:=nil;
   FSOut:=nil;
@@ -1044,10 +1080,12 @@ begin
       FSOut.Free;
     end;
   end;
+ end;
 end;
 
 procedure SetFCBExtent(var FCBExts:TFCBExtents; Index:integer; Value:word);
 begin
+ with Vars^ do
   if ExtentsInFCB<16 then
     FCBExts[Index]:=Value
   else
@@ -1058,6 +1096,7 @@ function SysgenCPM(NameIn, NameOut:string; FsIn,FsOut:TFileStream):integer;	//* 
 var xJump: TJump;
     OutPos:integer;
 begin
+ with Vars^ do begin
   Result:=ERR_WRONG_DPB_CRC;
   SetLength(ExtentBuf, FsIn.Size+1);
   FsIn.Read(ExtentBuf[0], FsIn.Size);
@@ -1104,6 +1143,7 @@ begin
   except
     Result:=ERR_FILE_SEEK;
   end;
+ end;
 end;
 
 function OdiFilePack(OdiArchiveName, SrcFileName, ArchFileName: string):integer;
@@ -1114,7 +1154,7 @@ var FS, FSSrc: TFileStream;
 begin
   Result:=-1;
   FS:=nil; FSSrc:=nil;
-  try
+  with Vars^ do try
     FillChar(FCB, sizeof(FCB), 0);
     SrcFileName:=trim(SrcFileName);
     ArchFileName:=trim(ArchFileName);
@@ -1222,6 +1262,7 @@ end;
 
 function GetPartInfo(OdiArchiveName:PChar):PChar; stdcall;
 begin
+ with Vars^ do begin
   Result:=@TmpBuf[0];
   TmpBuf[0]:=0;
   if not FileExists(OdiArchiveName) then exit;
@@ -1238,6 +1279,7 @@ begin
            BOOT.DPB.TRK, BOOT.DPB.OFF, 32*(BOOT.DPB.DRM+1),
            BOOT.DPB.TRK*BOOT.DPB.SEC*PhySectorSize*nSides,
            OdiFreeDiskSpace(), FileList.Count-16]);
+ end;
 end;
 
 function OdiGetInfo(OdiArchiveName: string): string;
@@ -1259,6 +1301,7 @@ function OdiCreateArchive(ArcFName: string): integer;
 var FS, FSSys: TFileStream;
     i, Readed: integer;
 begin
+ with Vars^ do begin
   Result:=-1;
   FS:=nil; FSSys:=nil;
   i:=0;
@@ -1335,12 +1378,14 @@ begin
     if Assigned(FS) then FS.Free;
     if Assigned(FSSys) then FSSys.Free;
   end;
+ end;
 end;
 
 //////////////////////////////////////////////////////////////////////////////
 
 function OpenArchivePart(ArcName: PChar; PartOffset: DWORD): THandle; stdcall;
 begin
+ with Vars^ do begin
   PartitionOffset:=PartOffset*512;
   FileListPos := 0;
   ArcFileName := StrPas(ArcName);
@@ -1352,6 +1397,7 @@ begin
   begin
     Result := 0;
   end;
+ end;
 end;
 
 function OpenArchive(var ArchiveData: TOpenArchiveData): THandle; stdcall;
@@ -1363,6 +1409,7 @@ end;
 
 function ReadHeader(hArcData: THandle; var HeaderData: THeaderData): integer; stdcall;
 begin
+ with Vars^ do begin
   inc(FileListPos);
   if FileListPos = FileList.Count+1 then
   begin
@@ -1379,12 +1426,14 @@ begin
     HeaderData.UnpSize  := FileSize;
     HeaderData.FileTime := FileTime;
   end;
+ end;
 end;
 
 function ProcessFile(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
 var OutName: string;
     ii: integer;
 begin
+ with Vars^ do begin
   if FileListPos = FileList.Count+1 then
     Result := E_END_ARCHIVE
   else
@@ -1413,6 +1462,7 @@ begin
       end;
     end;
   end;
+ end;
 end;
 
 function CloseArchive (hArcData: THandle): integer; stdcall;
@@ -1491,36 +1541,51 @@ end;
 
 procedure ConfigurePacker(Parent: HWND; DllInstance:LongWord); stdcall;
 begin
-  MessageBox(Parent, PChar(OdiGetInfo(ArcFileName)), 'Information', MB_OK+MB_ICONINFORMATION);
+  MessageBox(Parent, PChar(OdiGetInfo(Vars^.ArcFileName)), 'Information', MB_OK+MB_ICONINFORMATION);
 end;
 
 initialization
-  PartitionOffset:=0;                   // 0=for ODI, 1..x for OHI 
-  TmpBuf[sizeof(TmpBuf)-1]:=0;
-  FormatList:=TList.Create;
+  new(Vars);
+  with Vars^ do begin
+    fillchar(Vars^,sizeof(TVars),0);
+    PhySectorSize := $400;                                    // global
+    nSides := 2;                                              // global
+    ExtentSize := $800;
+    ExtentsInFCB := 8;
+    LogBlkInExt := 16;
+    USE_DPBLESS_DISKS := 1;
+    FileListPos := 0;
+    PartitionOffset := 0;                                     // 0=for ODI, 1..x for OHI
+    PartitionRomOffset := 0;                                  // 65536 for ROM, 0 else
+    TmpBuf[sizeof(TmpBuf)-1] := 0;
+    FormatList:=TList.Create;
 {$ifndef ORIONZEM}
-  FileList:=TList.Create;
-  if GetModuleFileName(hInstance, Pchar(@TmpBuf[0]), SizeOf(TmpBuf)-1)>0 then
-    IniFileName:=ChangeFileExt(StrPas(PChar(@TmpBuf[0])), '.INI')
-  else
-    IniFileName:='Odi.ini';
-  GetIniSettings(IniFileName);
+    FileList:=TList.Create;
+    if GetModuleFileName(hInstance, Pchar(@TmpBuf[0]), SizeOf(TmpBuf)-1)>0 then
+      IniFileName:=ChangeFileExt(StrPas(PChar(@TmpBuf[0])), '.INI')
+    else
+      IniFileName:='Odi.ini';
+    GetIniSettings(IniFileName);
 {$endif}
+  end;
 
 finalization
+  with Vars^ do begin
 {$ifndef ORIONZEM}
-  WritePrivateProfileString('PARAMS', 'USE_DPBLESS_DISKS',
+    WritePrivateProfileString('PARAMS', 'USE_DPBLESS_DISKS',
                             PChar(IntToStr(USE_DPBLESS_DISKS)), PChar(IniFileName));
-  if Assigned(FileList) then
-  begin
-    DisposeFileList(FileList);
-    FileList.Free;
-  end;
+    if Assigned(FileList) then
+    begin
+      DisposeFileList(FileList);
+      FileList.Free;
+    end;
 {$endif}
-  if Assigned(FormatList) then
-  begin
-    DisposeFormatList(FormatList);
-    FormatList.Free;
+    if Assigned(FormatList) then
+    begin
+      DisposeFormatList(FormatList);
+      FormatList.Free;
+    end;
+    fillchar(Vars^,sizeof(TVars),0);
   end;
-
+  Dispose(Vars);
 end.
