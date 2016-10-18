@@ -95,6 +95,7 @@ type
                FileSize: integer;
                FileTime: integer;
                FileAttr: integer;
+               FileAddr: integer;                     // For Ordos file  
                FExtents: TList;                       // list of PFCBExtent
              end;
   PFileRec = ^TFileRec;
@@ -146,6 +147,13 @@ const
   SystemTracks = 'UseThis_ToAccess_SystemTracks';
   SystemBin = 'System.bin';
   SystemUser = 254;
+  RomOffsSize = $10000;
+  OrdosSize = 2048;
+  ROMDISK_TOP = 65535-OrdosSize;
+  OrdosUser =  SystemUser-1;
+  OrdosFiles = SystemTracks+'\ORDOS_files';
+  PROsignature = #$FF#$ED#$B0#$3E#$02#$D3#$09#$FF#0;    // to detect Orion-PRO microROMdisk (within ROM2 body) 
+  ADRsignature = $1FF8-OrdosSize;
 
 type
   TSystemBinRec = packed record                         // sizeof=32
@@ -209,6 +217,8 @@ type
   TScanCatalogCallBack = function(FS: TStream; SerialN: integer;
                                   var FCB: TFCB; PParam: pointer): boolean;
 
+  TRomdiskType = (rtNone, rtPROmini, rtStandard);
+
   TVars = record
     BOOT: TExtBoot;
     AllocationMap: TAllocationMap;                                   // global
@@ -228,8 +238,11 @@ type
     FileToProcess: string;
     ArcFileName: string;
     IniFileName: string;
-    PartitionOffset: DWORD;    {V1.01}
-    PartitionRomOffset: DWORD; {V1.04}
+    PartitionOffs: DWORD;      {V1.01}
+    PartitionRomOffs: DWORD;   {V1.04}
+    RomdiskType: TRomdiskType;
+    FileDate: integer;
+    ROMArr: array [0..ROMDISK_TOP] of byte;
   end;
   PVars = ^TVars;
 
@@ -259,7 +272,7 @@ procedure SetProcessDataProc(hArcData: THandle; pProcessDataProc: TProcessDataPr
 procedure ConfigurePacker(Parent: HWND; DllInstance:LongWord); stdcall;
 function GetPartInfo(OdiArchiveName:PChar):PChar; stdcall;
 procedure DisposeFileList(var List: TList);
-procedure GetBOOT(FName: string; FS: TFileStream; FmtN: integer);
+function GetBOOT(FName: string; FS: TFileStream; FmtN: integer):boolean;
 
 implementation
 
@@ -538,7 +551,13 @@ begin
     Result:=Result xor ord(buf[i]);
 end;
 
-procedure GetBOOT(FName: string; FS: TFileStream; FmtN: integer);
+function PartitionOffset:integer;
+begin
+ with Vars^ do
+  Result:=PartitionOffs+PartitionRomOffs;
+end;
+
+function GetMainBOOT(FName: string; FS: TFileStream; FmtN: integer):boolean;
 var d, CalculatedSize: integer;
 begin
  with Vars^ do begin
@@ -546,14 +565,15 @@ begin
   BOOT.Damaged:=False;
   FS.Seek(PartitionOffset, soFromBeginning);                                         {V1.01}
   FS.Read(BOOT, sizeof(TAltBoot));
-  BOOT.BOOTvalid:=DPBcrc(BOOT.DPB)=BOOT.DPB.CRC;
-  BOOT.LBLvalid:=BOOT.BOOTvalid and
+  Result:=DPBcrc(BOOT.DPB)=BOOT.DPB.CRC;
+  BOOT.BOOTvalid:=Result;
+  BOOT.LBLvalid:=Result and
                 (XorCRC(BOOT.LBL,sizeof(BOOT.LBL))=BOOT.SLBL);
-  BOOT.UNMvalid:=BOOT.BOOTvalid and
+  BOOT.UNMvalid:=Result and
                 (XorCRC(@BOOT.UNM[0,0], sizeof(BOOT.UNM))=BOOT.SUNM);
-  BOOT.TIMvalid:=BOOT.BOOTvalid and
+  BOOT.TIMvalid:=Result and
                 (XorCRC(PChar(pointer(@BOOT.TIM[0])),sizeof(BOOT.TIM))=BOOT.STIM);
-  if (not BOOT.BOOTvalid)and(PartitionOffset=0)and(USE_DPBLESS_DISKS<>0) then           // 20160726: DPBless disks support is only for disk images (PartitionOffset=0)
+  if (not Result)and(PartitionOffset=0)and(USE_DPBLESS_DISKS<>0) then           // 20160726: DPBless disks support is only for disk images (PartitionOffset=0)
   begin
     if FmtN<0 then
     begin
@@ -581,8 +601,9 @@ begin
     BOOT.DPB.CRC:=DPBcrc(BOOT.DPB);
     BOOT.BOOTvalid:=True;
     BOOT.Damaged:=True;
+    Result:=True;
   end;
-  if BOOT.BOOTvalid then
+  if Result then
   with BOOT do
   begin
     case DPB.LEN1 of
@@ -599,12 +620,36 @@ begin
     ExtentSize := LogBlkInExt*LogBlockSize;
     ExtentsInFCB := (BOOT.DPB.EXM+1)*16384 div ExtentSize;
     SetLength(ExtentBuf, ExtentSize*ExtentsInFCB+1);
-
+{1.4}
     FS.Seek(PhySectorSize * BOOT.DPB.SEC * BOOT.DPB.OFF + PartitionOffset - sizeof(BOOT.SystemBinRec), soFromBeginning);  // 20160909 - for sysgen special catalog/file
     FS.Read(BOOT.SystemBinRec, sizeof(BOOT.SystemBinRec));
     BOOT.SystemBinValid:=DPBcrc(PBootDPB(pointer(@BOOT.SystemBinRec))^)=BOOT.SystemBinRec.CRC;
+{1.5}
+    if Result and (BOOT.DPB.TRK*BOOT.DPB.SEC*PhySectorSize*nSides>(FS.Size-PartitionOffset)) then
+    begin
+       Result:=False;
+    end;
   end;
  end;
+end;
+
+function GetBOOT(FName: string; FS: TFileStream; FmtN: integer):boolean;
+var UDD:integer;
+begin
+  Result:=True;
+  with Vars^ do begin
+    UDD:=USE_DPBLESS_DISKS;
+    USE_DPBLESS_DISKS:=0;
+    if not GetMainBOOT(FName, FS, FmtN) then begin
+      PartitionRomOffs:=RomOffsSize;
+      if not GetMainBOOT(FName, FS, FmtN) then begin    {V1.05 - search for inROM filesystem with 65536 offset }
+        PartitionRomOffs:=0;
+        RomdiskType:=rtNone;
+        USE_DPBLESS_DISKS:=UDD;
+        Result:=GetMainBOOT(FName, FS, FmtN);
+      end;
+    end;
+  end;
 end;
 
 procedure SetBOOT(OdiArchiveName: string);
@@ -665,8 +710,10 @@ function ExtractFileUser(FName: string): byte;     // '...\USER_12\filename.ext'
 var UPath: string;
     i: integer;
 begin
-  Result:=SystemUser;
   UPath:=ExtractFilePath(FName);
+  Result:=OrdosUser;
+  if pos(OrdosFiles+'\',UPath)<>0 then exit;                                // 20161019 special subdir for ORDOS files
+  Result:=SystemUser;
   if pos(SystemTracks+'\',UPath)<>0 then exit;                              // 20160909 for sysgen special subdir
   Result:=$FF;
   while (UPath<>'') and (not (UPath[Length(Upath)] in ['0'..'9'])) do
@@ -787,6 +834,7 @@ begin
   FS:=nil;
   with Vars^ do try
     FS:=TFileStream.Create(OdiArchiveName, fmMode or fmShareDenyWrite);
+    FileDate:=FileGetDate(FS.Handle);
     GetBOOT(OdiArchiveName, FS, -1);
     if not BOOT.BOOTvalid then                                            // wrong CRC
       Result:=ERR_WRONG_DPB_CRC
@@ -896,6 +944,178 @@ begin
  end;
 end;
 
+function IsFLeter(ch: byte):boolean;
+begin
+  IsFLeter:=(ch>=32)and(ch<127);
+end;
+
+function GetOrdosFileList(list:TStrings): integer;
+var ii: integer;
+    ss: string;
+begin
+  Result:=0;
+  with Vars^ do
+   if IsFLeter(ROMArr[0]) then
+    repeat
+      ss:='';
+      for ii:=0 to 7 do
+        if IsFLeter(ROMArr[Result+ii]) then ss:=ss+chr(ROMArr[Result+ii]);
+      if trim(ss)<>'' then list.AddObject(trim(ss)+'.ORD', pointer(Result));
+      Result:=Result + 16 + PWord(@ROMArr[Result+10])^;
+    until (Result>ROMDISK_TOP)or(not IsFLeter(ROMArr[Result]));
+end;
+
+procedure GetOrdosBlock(FS:TStream);
+begin
+  with Vars^ do
+  if PartitionRomOffs<>0 then begin
+    FS.Seek(PartitionOffs+OrdosSize, soFromBeginning);
+    FS.ReadBuffer(ROMArr, sizeof(ROMArr));
+    RomdiskType:=rtStandard;
+    if StrPos(PChar(@ROMArr[ADRsignature]),PROsignature)=PChar(@ROMArr[ADRsignature]) then  {test for romdisk type: miniPRO or standard }
+    begin // if miniPROromdisk
+      RomdiskType:=rtPROmini;
+      FS.Seek(PartitionOffs+$4D80, soFromBeginning);
+      FS.ReadBuffer(ROMArr[0], $1270);
+      FS.Seek(PartitionOffs+$1270, soFromBeginning);
+      FS.ReadBuffer(ROMArr[$1270], $D90);     // $D80
+    end;
+  end;
+end;
+
+procedure PutOrdosBlock(FS:TStream);
+begin
+  with Vars^ do
+  if PartitionRomOffs<>0 then begin
+    case RomdiskType of
+      rtStandard: begin
+                    FS.Seek(PartitionOffs+OrdosSize, soFromBeginning);
+                    FS.WriteBuffer(ROMArr, sizeof(ROMArr));
+                  end;
+      rtPROmini: begin
+                    FS.Seek(PartitionOffs+$4D80, soFromBeginning);
+                    FS.WriteBuffer(ROMArr[0], $1270);
+                    FS.Seek(PartitionOffs+$1270, soFromBeginning);
+                    FS.WriteBuffer(ROMArr[$1270], $D80);
+                 end;
+    end;
+  end;
+end;
+
+procedure DelOrdosFile(FS:TStream; DelFName:string);
+var ii, kk, aa, ss: integer;
+    FL: TStringList;
+begin
+  with Vars^ do
+  if PartitionRomOffs<>0 then try
+    GetOrdosBlock(FS);
+    FL:=TStringList.Create;
+    if GetOrdosFileList(FL)>0 then begin
+      ii:=FL.IndexOf(trim(DelFName));
+      if ii>=0 then begin                      // file founded - then delete it
+        aa:=integer(pointer(FL.Objects[ii]));                          // deleting file "address"
+        ss:=16+PWord(@ROMArr[aa+10])^;                                 // deleting file size
+        ii:=integer(pointer(FL.Objects[FL.Count-1]));                  // addres of last file
+        kk:=16+PWord(@ROMArr[aa+10])^;                                 // last file size
+        MoveMemory(@ROMArr[aa], @ROMArr[aa+ss], ii+kk-aa-ss);
+        fillchar(ROMArr[ii+kk-ss], ss, $FF);
+        PutOrdosBlock(FS);
+      end;
+    end;
+  finally
+    FL.Free;
+  end;
+end;
+
+function PackOrdosFile(SrcFN:string; FSSrc:TStream; FS:TStream): integer;
+var ii, max, next_ordos, datasize: integer;
+    ss: string;
+    FL: TStringList;
+begin
+  Result:=ERR_NO_DISK_SPACE;
+  with Vars^ do try
+    if PartitionRomOffs<>0 then begin
+      GetOrdosBlock(FS);
+      case RomdiskType of
+        rtStandard: max:=sizeof(ROMArr);
+        rtPROmini:  max:=$1270+$D80;
+        else exit;
+      end;
+      FL:=TStringList.Create;
+      next_ordos:=GetOrdosFileList(FL);
+      if (next_ordos>=0) and (next_ordos<max-16) then begin
+        if FSSrc.Read(PByte(@ROMArr[next_ordos])^, 16)=16 then          // read ordos header
+        begin
+          ss:='';
+          for ii:=0 to 7 do
+            if IsFLeter(ROMArr[next_ordos+ii]) then ss:=ss+chr(ROMArr[next_ordos+ii]);
+          if (trim(ss)<>'') and (FL.IndexOf(trim(ss))>=0) then begin                       // file exists
+            FL.Free;
+            exit;
+          end;
+          datasize:=PWord(@ROMArr[next_ordos+10])^;
+          if (datasize<max-next_ordos-16) then
+          begin
+            FSSrc.Read(PByte(@ROMArr[next_ordos+16])^, datasize);
+            next_ordos:=next_ordos + datasize + 16;                         // 16 = ordos_header size
+            Result:=0;
+          end;
+        end;
+        ROMArr[next_ordos]:=$FF;   // end of ordos files chain
+        if Result=0 then           // if success
+          PutOrdosBlock(FS);
+      end;
+      FL.Free;
+    end;
+  except
+    Result:=ERR_PACK_FILE;
+    FL.Free;
+  end;
+end;
+
+procedure GetOrdosFiles(OdiArchiveName:string);
+var PFRec: PFileRec;
+    FL: TStringList;
+    FS: TFileStream;
+    ii: integer;
+begin
+  FS:=nil;
+  with Vars^ do try
+    FS:=TFileStream.Create(OdiArchiveName, fmOpenRead or fmShareDenyWrite);
+    GetOrdosBlock(FS);
+    new(PFRec);                                 // 20161018 Special catalog for ORDOS files (within ROM)
+    with PFRec^ do
+    begin
+      FileUser:=OrdosUser;
+      FileName:=OrdosFiles;
+      FileSize:=0;
+      FileTime:=FileDate;
+      FileAttr:=faDirectory;
+      FExtents:=nil;
+    end;
+    FileList.Add(PFRec);
+    FL:=TStringList.Create;
+    if GetOrdosFileList(FL)>0 then
+      for ii:=0 to FL.Count-1 do begin
+        new(PFRec);                                 // add Ordos file to list
+        with PFRec^ do
+        begin
+          FileUser:=OrdosUser;
+          FileName:=OrdosFiles+'\'+FL[ii];
+          FileSize:=16+PWord(@ROMArr[integer(pointer(FL.Objects[ii]))+10])^;
+          FileTime:=FileDate;
+          FileAttr:=0;      // faSysFile;
+          FileAddr:=integer(pointer(FL.Objects[ii]));
+          FExtents:=nil;
+        end;
+        FileList.Add(PFRec);
+      end;
+  finally
+    if Assigned(FS) then FS.Free;
+    FL.Free;
+  end;
+end;
+
 function OdiGetCatalog(OdiArchiveName: string):integer;
 var j: integer;
     PFRec: PFileRec;
@@ -920,35 +1140,37 @@ begin
     end;
     Result:=ScanCatalog(OdiArchiveName, fmOpenRead, ScanCatalogList, nil);
     if (Result>=0)and(BOOT.BOOTvalid) then begin
-     new(PFRec);                                 // 20160909 Special catalog for sysgen (access system tracks)
-     with PFRec^ do
-     begin
-      FileUser:=SystemUser;
-      FileName:=SystemTracks;
-      FileSize:=0;
-      FileTime:=0;
-      FileAttr:=faDirectory;
-      FExtents:=nil;
-     end;
-     FileList.Add(PFRec);
-     new(PFRec);                                 // 0160909 Special file for sysgen (access system tracks)
-     with PFRec^ do
-     begin                            
-      FileUser:=SystemUser;
-      if BOOT.SystemBinValid then begin
-        FileName:=SystemTracks+'\'+StrPas(BOOT.SystemBinRec.Name);
-        FileSize:=BOOT.SystemBinRec.Size;
-        FileTime:=BOOT.SystemBinRec.Date;
-      end
-      else begin
-        FileName:=SystemTracks+'\'+SystemBin;
-        FileSize:=PhySectorSize * BOOT.DPB.SEC * BOOT.DPB.OFF;
-        FileTime:=0;
+      new(PFRec);                                 // 20160909 Special catalog for sysgen (access system tracks)
+      with PFRec^ do
+      begin
+        FileUser:=SystemUser;
+        FileName:=SystemTracks;
+        FileSize:=0;
+        FileTime:=FileDate;
+        FileAttr:=faDirectory;
+        FExtents:=nil;
       end;
-      FileAttr:=0;      // faSysFile;
-      FExtents:=nil;
-     end;
-     FileList.Add(PFRec);
+      FileList.Add(PFRec);
+      if PartitionRomOffs<>0 then                 // 20161018 Special catalog for ORDOS files (within ROM)
+        GetOrdosFiles(OdiArchiveName);
+      new(PFRec);                                 // 0160909 Special file for sysgen (access system tracks)
+      with PFRec^ do
+      begin
+        FileUser:=SystemUser;
+        if BOOT.SystemBinValid then begin
+          FileName:=SystemTracks+'\'+StrPas(BOOT.SystemBinRec.Name);
+          FileSize:=BOOT.SystemBinRec.Size;
+          FileTime:=BOOT.SystemBinRec.Date;
+        end
+        else begin
+          FileName:=SystemTracks+'\'+SystemBin;
+          FileSize:=PhySectorSize * BOOT.DPB.SEC * BOOT.DPB.OFF;
+          FileTime:=FileDate;
+        end;
+        FileAttr:=0;      // faSysFile;
+        FExtents:=nil;
+      end;
+      FileList.Add(PFRec);
     end;
   except
     Result:=-1;
@@ -966,6 +1188,10 @@ begin
   Result:=True;
   DelUserN:=ExtractFileUser(PString(PParam)^);
   DelFName:=ExtractFileName(PString(PParam)^);
+  if DelUserN=OrdosUser then begin
+    DelOrdosFile(FS, DelFName);
+    exit;
+  end;
   for j:=0 to sizeof(FCB.FileName)-1 do
   begin
     if (FCB.FileName[j]='\')or(FCB.FileName[j]='/') then FCB.FileName[j]:='-';
@@ -1023,6 +1249,11 @@ begin
     FS:=TFileStream.Create(OdiArchiveName, fmOpenRead or fmShareDenyWrite);
     FSOut:=TFileStream.Create(OutName, fmCreate);
     i:=0;
+    if PFRec^.FileUser=OrdosUser then begin
+        FSOut.Write(ROMArr[PFRec^.FileAddr], PFRec^.FileSize);
+        Result:=0;
+      end
+    else
     if PFRec^.FileUser=SystemUser then begin
         if PFRec^.FileSize>=sizeof(ExtentBuf) then
           SetLength(ExtentBuf, PFRec^.FileSize+1);
@@ -1161,8 +1392,14 @@ begin
     if ArchFileName='' then
       ArchFileName:=SrcFileName;
     FCB.User:=ExtractFileUser(ArchFileName);
+    Result:=ERR_NO_DISK_SPACE;
+    if FCB.User = OrdosUser then begin
+      FSSrc:=TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
+      FS:=TFileStream.Create(OdiArchiveName, fmOpenReadWrite or fmShareDenyWrite);
+      Result:=PackOrdosFile(SrcFileName,FSSrc,FS);
+    end
+    else
     if FCB.User = SystemUser then begin
-      Result:=ERR_NO_DISK_SPACE;
       FSSrc:=TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
       if (FSSrc.Size>sizeof(TAltBOOT))and(FSSrc.Size<=PhySectorSize*BOOT.DPB.Sec*BOOT.DPB.Off)and BOOT.BOOTvalid then begin
         FS:=TFileStream.Create(OdiArchiveName, fmOpenReadWrite or fmShareDenyWrite);
@@ -1186,7 +1423,6 @@ begin
      if Attr and faHidden <> 0 then
        FCB.FileName[9]:=chr(ord(FCB.FileName[9]) or $80);
      FSSrc:=TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
-     Result:=ERR_NO_DISK_SPACE;
      off:=0; Attr:=0;
      FExists:=OdiFileExists(ArchFileName, i);
      if FExists then
@@ -1290,7 +1526,7 @@ begin
                    '(Orion Disk Image files). Allow copy/extract CP/M files'#13#10+
                    'to/from ODI file "diskette" such simple as processing any'#13#10+
                    'archives with TotalCommander interface.'#13#10+
-                   #13#10'FREEWARE Version 1.01.'+
+                   #13#10'FREEWARE Version 1.05.'+
                    #13#10'distributed "AS IS" WITHOUT ANY WARRANTY'#13#10+
                    #13#10'Copyright (C)2006-2016 Sergey A.'#13#10+
                    #13#10'Archive: `%s`'#13#10#13#10'%s',
@@ -1386,7 +1622,9 @@ end;
 function OpenArchivePart(ArcName: PChar; PartOffset: DWORD): THandle; stdcall;
 begin
  with Vars^ do begin
-  PartitionOffset:=PartOffset*512;
+  PartitionOffs:=PartOffset*512;
+  PartitionRomOffs:=0;                                  // 65536 for ROM, 0 else
+  RomdiskType:=rtNone;
   FileListPos := 0;
   ArcFileName := StrPas(ArcName);
   if not FileExists(ArcFileName) then
@@ -1555,9 +1793,10 @@ initialization
     LogBlkInExt := 16;
     USE_DPBLESS_DISKS := 1;
     FileListPos := 0;
-    PartitionOffset := 0;                                     // 0=for ODI, 1..x for OHI
-    PartitionRomOffset := 0;                                  // 65536 for ROM, 0 else
+    PartitionOffs := 0;                                     // 0=for ODI, 1..x for OHI
+    PartitionRomOffs := 0;                                  // 65536 for ROM, 0 else
     TmpBuf[sizeof(TmpBuf)-1] := 0;
+    RomdiskType:=rtNone;
     FormatList:=TList.Create;
 {$ifndef ORIONZEM}
     FileList:=TList.Create;
@@ -1589,3 +1828,141 @@ finalization
   end;
   Dispose(Vars);
 end.
+
+
+{
+function GetOrdosFileList(list:TStrings): integer;
+var ii: integer;
+    ss: string;
+  function IsFLeter(ch: byte):boolean;
+  begin
+    IsFLeter:=(ch>=32)and(ch<127);
+  end;
+begin
+  Result:=0;
+  if IsFLeter(ROMArr[1, 1]) and IsFLeter(ROMArr[1, 2]) and IsFLeter(ROMArr[1, 3]) then
+    repeat
+      ss:='';
+      for ii:=0 to 7 do
+        if IsFLeter(ROMArr[1, Result+ii]) then ss:=ss+chr(ROMArr[1, Result+ii]);
+      if trim(ss)<>'' then list.AddObject(ss, pointer(Result));
+      Result:=Result + 16 + PWord(@ROMArr[1, Result+10])^;
+    until (Result>RAMDISK_TOP)or(not IsFLeter(ROMArr[1, Result]));
+end;
+
+procedure TfrmMain.ItemLoadClick(Sender: TObject);
+var param_n, next_ordos, fsize, datasize, ii: integer;
+    FL: TStringList;
+    ss: string;
+    ft: TOFileType;
+    FStream: TFileStream;
+begin
+  ii:=0;
+  FL:=TStringList.Create;
+  next_ordos:=GetOrdosFileList(FL);
+  OpenDialog.Title:='Select ORDOS file(s) to load (ctrl+mouse)';
+  OpenDialog.Options:=OpenDialog.Options + [ofAllowMultiSelect];
+  OpenDialog.DefaultExt:=ORD_EXT;
+  OpenDialog.Filter:=ORD_FILTER;
+  OpenDialog.FilterIndex:=1;
+  try
+    if (next_ordos>=0) and (next_ordos<RAMDISK_TOP-16) and
+       OpenDialog.Execute and
+       (Application.MessageBox('Data in second RAM page (RAM-DISK B) will be repaced'#13#10'with data contained in loaded file(s).   OK to continue?',
+                               'Warning: Confirm replace', MB_OKCANCEL+MB_ICONEXCLAMATION)=mrOk)
+    then
+    begin
+      with OpenDialog.Files do for param_n:=0 to Count-1 do
+      begin
+        ss:=CheckFileExists(Strings[param_n]);
+        ft:=DetectFileType(ss, fsize);
+        case ft of
+          ftRko, ftBru, ftOrd:                              // ordos_header[10..11] - ORDOS filesize
+            if (next_ordos+fsize<RAMDISK_TOP) then
+            begin
+              FStream:=nil;
+              try
+                FStream:=TFileStream.Create(ss, fmOpenRead or fmShareDenyWrite);
+                if (ft=ftRko) then
+                  FStream.Seek(77, soFromBeginning);                                // skip RKO header
+                if FStream.Read(PByte(@ROMArr[1, next_ordos])^, 16)=16 then         // read ordos header
+                begin
+                  datasize:=PWord(@ROMArr[1, next_ordos+10])^;
+                  if (datasize<RAMDISK_TOP-next_ordos-16) then
+                  begin
+                    FStream.Read(PByte(@ROMArr[1, next_ordos+16])^, datasize);
+                    next_ordos:=next_ordos + datasize + 16;                         // 16 = ordos_header size
+                    inc(ii);
+                  end;
+                end;
+              finally
+                ROMArr[1, next_ordos]:=$FF;   // end of ordos files chain
+                if Assigned(FStream) then
+                  FStream.Free;
+              end;
+            end;
+        end;
+      end;
+      Application.MessageBox(PChar(Format('%d files loaded. Please, restart ORDOS VC$ commander (press "F4").', [ii])),
+                             'Information', MB_OK+MB_ICONINFORMATION);
+    end;
+  finally
+    FL.Free;
+    OpenDialog.Options:=OpenDialog.Options - [ofAllowMultiSelect];
+  end;
+  Update;
+  Application.ProcessMessages;
+end;
+
+procedure TfrmMain.ItemSaveClick(Sender: TObject);
+var ii: integer;
+    FStream: TFileStream;
+    ss: string;
+begin
+  FrmSave:=TFrmSave.Create(Application);
+  with FrmSave do
+  try
+    if GetOrdosFileList(lbOrdFiles.Items)>0 then
+    begin
+      for ii:=0 to lbOrdFiles.Items.Count-1 do
+        lbOrdFiles.Items[ii]:=lbOrdFiles.Items[ii]+
+                              format('   (%d bytes)',
+                                     [integer(PWord(@ROMArr[1, integer(pointer(lbOrdFiles.Items.Objects[ii]))+10])^)]);
+      if (ShowModal=mrOk)and(lbOrdFiles.SelCount>0) then
+      begin
+        SaveDialog.Title:='Select catalog for ORDOS file(s)';
+        SaveDialog.DefaultExt:=ORD_EXT;
+        SaveDialog.Filter:='ORDOS file (*.ord)|*.ord|Any file (*.*)|*.*';
+        SaveDialog.FilterIndex:=1;
+        ii:=0;
+        while not lbOrdFiles.Selected[ii] do inc(ii);
+        ss:=lbOrdFiles.Items[ii];
+        SaveDialog.FileName:=ChangeFileExt(LeftSubstr(ss), '.'+ORD_EXT);
+        if SaveDialog.Execute then
+          for ii:=0 to lbOrdFiles.Items.Count-1 do
+            if lbOrdFiles.Selected[ii] then
+            try
+              FStream:=nil;
+              if (lbOrdFiles.SelCount=1) then
+                FStream:=TFileStream.Create(ChangeFileExt(SaveDialog.FileName, '.'+ORD_EXT), fmCreate)
+              else
+              begin
+                ss:=lbOrdFiles.Items[ii];
+                FStream:=TFileStream.Create(ChangeFileExt(LeftSubstr(ss), '.'+ORD_EXT), fmCreate);
+              end;
+              FStream.Write(PByte(@ROMArr[1, integer(pointer(lbOrdFiles.Items.Objects[ii])) ])^,
+                            integer(PWord(@ROMArr[1, integer(pointer(lbOrdFiles.Items.Objects[ii]))+10])^)+16);
+            finally
+              if Assigned(FStream) then FStream.Free;
+            end;
+      end;
+    end
+    else
+      Application.MessageBox('No files in RAM-DISK B.', 'Information', MB_OK+MB_ICONINFORMATION);
+  finally
+    Free;
+    FrmSave:=nil;
+  end;
+end;
+}
+
