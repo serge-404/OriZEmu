@@ -6,7 +6,7 @@
 //   Addon: TotalCommander archiver (WCX) plugin for serving ODI files //
 //          (Orion Disk Image files). Allow copy/extract CP/M files    //
 //          to/from ODI file "diskette" such simple as processing any  //
-//          archives in TotalCommander interface. Version 0.999alpha   //
+//          archives in TotalCommander interface.    Version 1.05      //
 //                                                                     //
 //   How to install this plugin (32 bit only) in TotalCommander:       //
 //          1. Unzip odi.wcx, system.bin to any directory              //
@@ -118,8 +118,8 @@ User-ы с файлами выводятся на верхнем регистр�
 В составе дистрибутива несколько файлов с кодами клонов систем CP/M 2.2:
 
   -  acpm1-53.bin  Advanced CP/M  SP-Computer Club 1992г.  - CP/M 2.2
-                   один в один, с ее дискет можно грузиться безо всяких
-                   дополнительных драйверов - работает через Монитор
+                   один-в-один, с ее дискет можно грузиться безо всяких
+                   дополнительных драйверов - работает через Монитор F800
 
   -  system.bin    AltairDOS 3.5 (AltairDOS с поддержкой HDD) для варианта
                    загрузки с дисковода (Floopy Boot)
