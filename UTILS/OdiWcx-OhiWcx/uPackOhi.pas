@@ -880,7 +880,7 @@ begin
                            '(Orion HDD Image files). Allow copy/extract CP/M files'#13#10+
                            'to/from OHI "hdd image" such simple as processing any'#13#10+
                            'archives with TotalCommander interface.'#13#10+
-                           #13#10'FREEWARE Version 1.01,'+
+                           #13#10'FREEWARE Version 1.05,'+
                            #13#10'distributed "AS IS" WITHOUT ANY WARRANTY'#13#10+
                            #13#10'Copyright (C)2008-2016 Sergey A.'#13#10+
                            #13#10'Archive: `%s`'+st,
