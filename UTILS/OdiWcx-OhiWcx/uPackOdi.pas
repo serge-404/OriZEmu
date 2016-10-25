@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////
 //                                                                     //
-//   Orion/Z (Orion-128 + Z80-CARD-II) emulator, version 1.05          //
+//   Orion/Z (Orion-128 + Z80-CARD-II) emulator, version 1.06          //
 //                                                                     //
 //   Addon: TotalCommander archiver (WCX) plugin for serving ODI files //
 //          (Orion Disk Image files). Allow copy/extract CP/M files    //
@@ -238,8 +238,9 @@ type
     FileToProcess: string;
     ArcFileName: string;
     IniFileName: string;
+    PartitionN: DWORD;         {V1.06}
     PartitionOffs: DWORD;      {V1.01}
-    PartitionRomOffs: DWORD;   {V1.04}
+    PartitionRomOffs: DWORD;   {V1.05}
     RomdiskType: TRomdiskType;
     FileDate: integer;
     ROMArr: array [0..ROMDISK_TOP] of byte;
@@ -259,7 +260,7 @@ function OdiFileDelete(OdiArchiveName: string; FileToDelete: string):integer;
 function OdiFilePack(OdiArchiveName, SrcFileName, ArchFileName: string):integer;
 {}
 function OpenArchive(var ArchiveData: TOpenArchiveData): THandle; stdcall;
-function OpenArchivePart(ArcName: PChar; PartOffset: DWORD): THandle; stdcall;
+function OpenArchivePart(ArcName: PChar; PartOffset: DWORD; PartN:DWORD): THandle; stdcall;
 function ReadHeader(hArcData: THandle; var HeaderData: THeaderData): integer; stdcall;
 function ProcessFile(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
 function CloseArchive (hArcData: THandle): integer; stdcall;
@@ -1619,9 +1620,10 @@ end;
 
 //////////////////////////////////////////////////////////////////////////////
 
-function OpenArchivePart(ArcName: PChar; PartOffset: DWORD): THandle; stdcall;
+function OpenArchivePart(ArcName: PChar; PartOffset: DWORD; PartN:DWORD): THandle; stdcall;
 begin
  with Vars^ do begin
+  PartitionN:=PartN;
   PartitionOffs:=PartOffset*512;
   PartitionRomOffs:=0;                                  // 65536 for ROM, 0 else
   RomdiskType:=rtNone;
@@ -1632,15 +1634,13 @@ begin
   if OdiGetCatalog(ArcFileName)>=0 then
     Result := 1
   else
-  begin
     Result := 0;
-  end;
  end;
 end;
 
 function OpenArchive(var ArchiveData: TOpenArchiveData): THandle; stdcall;
 begin
-  Result:=OpenArchivePart(ArchiveData.ArcName, 0);
+  Result:=OpenArchivePart(ArchiveData.ArcName, 0, 0);
   if Result=0 then
     ArchiveData.OpenResult := E_UNKNOWN_FORMAT;
 end;
@@ -1669,7 +1669,7 @@ end;
 
 function ProcessFile(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
 var OutName: string;
-    ii: integer;
+//    ii: integer;
 begin
  with Vars^ do begin
   if FileListPos = FileList.Count+1 then
@@ -1710,10 +1710,9 @@ end;
 
 function PackFiles(PackedFile, SubPath, SrcPath, AddList: PChar; Flags: integer): integer; stdcall;
 begin
-  Result := E_UNKNOWN_FORMAT;
-  if not FileExists(PackedFile) then
-    OdiCreateArchive(PackedFile);
-  begin
+    Result := E_UNKNOWN_FORMAT;
+    if not FileExists(PackedFile) then
+      OdiCreateArchive(PackedFile);
     if OdiGetCatalog(PackedFile)<0 then
       exit;
     Result := 0;
@@ -1731,7 +1730,6 @@ begin
     end;
     if Result=0 then
       SetBOOT(PackedFile);
-  end;
 end;
 
 function DeleteFiles(PackedFile, DeleteList: PChar): integer; stdcall;
@@ -1829,140 +1827,4 @@ finalization
   Dispose(Vars);
 end.
 
-
-{
-function GetOrdosFileList(list:TStrings): integer;
-var ii: integer;
-    ss: string;
-  function IsFLeter(ch: byte):boolean;
-  begin
-    IsFLeter:=(ch>=32)and(ch<127);
-  end;
-begin
-  Result:=0;
-  if IsFLeter(ROMArr[1, 1]) and IsFLeter(ROMArr[1, 2]) and IsFLeter(ROMArr[1, 3]) then
-    repeat
-      ss:='';
-      for ii:=0 to 7 do
-        if IsFLeter(ROMArr[1, Result+ii]) then ss:=ss+chr(ROMArr[1, Result+ii]);
-      if trim(ss)<>'' then list.AddObject(ss, pointer(Result));
-      Result:=Result + 16 + PWord(@ROMArr[1, Result+10])^;
-    until (Result>RAMDISK_TOP)or(not IsFLeter(ROMArr[1, Result]));
-end;
-
-procedure TfrmMain.ItemLoadClick(Sender: TObject);
-var param_n, next_ordos, fsize, datasize, ii: integer;
-    FL: TStringList;
-    ss: string;
-    ft: TOFileType;
-    FStream: TFileStream;
-begin
-  ii:=0;
-  FL:=TStringList.Create;
-  next_ordos:=GetOrdosFileList(FL);
-  OpenDialog.Title:='Select ORDOS file(s) to load (ctrl+mouse)';
-  OpenDialog.Options:=OpenDialog.Options + [ofAllowMultiSelect];
-  OpenDialog.DefaultExt:=ORD_EXT;
-  OpenDialog.Filter:=ORD_FILTER;
-  OpenDialog.FilterIndex:=1;
-  try
-    if (next_ordos>=0) and (next_ordos<RAMDISK_TOP-16) and
-       OpenDialog.Execute and
-       (Application.MessageBox('Data in second RAM page (RAM-DISK B) will be repaced'#13#10'with data contained in loaded file(s).   OK to continue?',
-                               'Warning: Confirm replace', MB_OKCANCEL+MB_ICONEXCLAMATION)=mrOk)
-    then
-    begin
-      with OpenDialog.Files do for param_n:=0 to Count-1 do
-      begin
-        ss:=CheckFileExists(Strings[param_n]);
-        ft:=DetectFileType(ss, fsize);
-        case ft of
-          ftRko, ftBru, ftOrd:                              // ordos_header[10..11] - ORDOS filesize
-            if (next_ordos+fsize<RAMDISK_TOP) then
-            begin
-              FStream:=nil;
-              try
-                FStream:=TFileStream.Create(ss, fmOpenRead or fmShareDenyWrite);
-                if (ft=ftRko) then
-                  FStream.Seek(77, soFromBeginning);                                // skip RKO header
-                if FStream.Read(PByte(@ROMArr[1, next_ordos])^, 16)=16 then         // read ordos header
-                begin
-                  datasize:=PWord(@ROMArr[1, next_ordos+10])^;
-                  if (datasize<RAMDISK_TOP-next_ordos-16) then
-                  begin
-                    FStream.Read(PByte(@ROMArr[1, next_ordos+16])^, datasize);
-                    next_ordos:=next_ordos + datasize + 16;                         // 16 = ordos_header size
-                    inc(ii);
-                  end;
-                end;
-              finally
-                ROMArr[1, next_ordos]:=$FF;   // end of ordos files chain
-                if Assigned(FStream) then
-                  FStream.Free;
-              end;
-            end;
-        end;
-      end;
-      Application.MessageBox(PChar(Format('%d files loaded. Please, restart ORDOS VC$ commander (press "F4").', [ii])),
-                             'Information', MB_OK+MB_ICONINFORMATION);
-    end;
-  finally
-    FL.Free;
-    OpenDialog.Options:=OpenDialog.Options - [ofAllowMultiSelect];
-  end;
-  Update;
-  Application.ProcessMessages;
-end;
-
-procedure TfrmMain.ItemSaveClick(Sender: TObject);
-var ii: integer;
-    FStream: TFileStream;
-    ss: string;
-begin
-  FrmSave:=TFrmSave.Create(Application);
-  with FrmSave do
-  try
-    if GetOrdosFileList(lbOrdFiles.Items)>0 then
-    begin
-      for ii:=0 to lbOrdFiles.Items.Count-1 do
-        lbOrdFiles.Items[ii]:=lbOrdFiles.Items[ii]+
-                              format('   (%d bytes)',
-                                     [integer(PWord(@ROMArr[1, integer(pointer(lbOrdFiles.Items.Objects[ii]))+10])^)]);
-      if (ShowModal=mrOk)and(lbOrdFiles.SelCount>0) then
-      begin
-        SaveDialog.Title:='Select catalog for ORDOS file(s)';
-        SaveDialog.DefaultExt:=ORD_EXT;
-        SaveDialog.Filter:='ORDOS file (*.ord)|*.ord|Any file (*.*)|*.*';
-        SaveDialog.FilterIndex:=1;
-        ii:=0;
-        while not lbOrdFiles.Selected[ii] do inc(ii);
-        ss:=lbOrdFiles.Items[ii];
-        SaveDialog.FileName:=ChangeFileExt(LeftSubstr(ss), '.'+ORD_EXT);
-        if SaveDialog.Execute then
-          for ii:=0 to lbOrdFiles.Items.Count-1 do
-            if lbOrdFiles.Selected[ii] then
-            try
-              FStream:=nil;
-              if (lbOrdFiles.SelCount=1) then
-                FStream:=TFileStream.Create(ChangeFileExt(SaveDialog.FileName, '.'+ORD_EXT), fmCreate)
-              else
-              begin
-                ss:=lbOrdFiles.Items[ii];
-                FStream:=TFileStream.Create(ChangeFileExt(LeftSubstr(ss), '.'+ORD_EXT), fmCreate);
-              end;
-              FStream.Write(PByte(@ROMArr[1, integer(pointer(lbOrdFiles.Items.Objects[ii])) ])^,
-                            integer(PWord(@ROMArr[1, integer(pointer(lbOrdFiles.Items.Objects[ii]))+10])^)+16);
-            finally
-              if Assigned(FStream) then FStream.Free;
-            end;
-      end;
-    end
-    else
-      Application.MessageBox('No files in RAM-DISK B.', 'Information', MB_OK+MB_ICONINFORMATION);
-  finally
-    Free;
-    FrmSave:=nil;
-  end;
-end;
-}
 

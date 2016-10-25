@@ -6,7 +6,7 @@
 //          (Orion HDD Image files). Allow copy/extract CP/M files     //
 //          to/from OHI "hdd image" such simple as processing any      //
 //          archives in TotalCommander interface. PC MBR partitioning  //
-//          scheme supported.    Version 1.05.                         //
+//          scheme supported.    Version 1.06.                         //
 //                                                                     //
 //   How to install this plugin (32 bit only) in TotalCommander:       //
 //          1. Unzip odi.wcx, system.bin to any directory              //
@@ -126,7 +126,7 @@ $0D, $0A);
 
 
 type
-  TOpenArchivePart=function(ArcName: PChar; PartOffset: DWORD): THandle; stdcall;
+  TOpenArchivePart=function(ArcName: PChar; PartOffset: DWORD; PartN: DWORD): THandle; stdcall;
   TReadHeader=function(hArcData: THandle; var HeaderData: THeaderData): integer; stdcall;
   TProcessFile=function(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
   TCloseArchive=function(hArcData: THandle): integer; stdcall;
@@ -176,6 +176,7 @@ type
 
   TPartition=class(TCollectionItem)
   private
+    FPartN:    DWORD;
     FEnabled:  boolean;
     FActive:   boolean;
     FPartType: byte;
@@ -193,6 +194,7 @@ type
     destructor  Destroy; override;
     procedure   Update;
     function    GetFuncSet(LibName:string; var FSet: TFuncSet):HMODULE;
+    property PartN:DWORD read FPartN;
     property PartEnabled:boolean read FEnabled;
     property PartActive:boolean  read FActive;
     property PartType:byte   read FPartType;
@@ -215,7 +217,7 @@ type
     procedure SetLibList(FList: string);
   public
     constructor Create; virtual;
-    function AddPartition(PPartTab: PArray16): TPartition;
+    function AddPartition(PartNum:DWORD; PPartTab: PArray16): TPartition;
     property LibList:string read FLibList write SetLibList;
     property ArcFName:string read FArcFName write SetArcFName;
     property MBRScheme:boolean read FMBRScheme;
@@ -444,7 +446,7 @@ begin
         FileList.Add(PFRec);
         if PartEnabled then
         begin
-          hArcData:=FFuncSet.FOpenArchivePart(PChar(OhiArchiveName), PartBeg);
+          hArcData:=FFuncSet.FOpenArchivePart(PChar(OhiArchiveName), PartBeg, PartN);
           xRes:=hArcData>0;
           Res:=Res and xRes;
           while (xRes and (FFuncSet.FReadHeader(hArcData, HeaderData)<>E_END_ARCHIVE) ) do
@@ -613,7 +615,7 @@ begin
       FLibHandle:=0;
     end;
     LibHandle:=GetFuncSet(lib, FuncSet);
-    FEnabled:=(FuncSet.FOpenArchivePart(PChar(TPartitions(Collection).ArcFName), PartBeg)>0)
+    FEnabled:=(FuncSet.FOpenArchivePart(PChar(TPartitions(Collection).ArcFName), PartBeg, PartN)>0)
               and FuncSet.FCanYouHandleThisFile(PChar(TPartitions(Collection).ArcFName));
     if FEnabled then
     begin
@@ -629,12 +631,13 @@ end;
 
 { TPartitions }
 
-function TPartitions.AddPartition(PPartTab: PArray16): TPartition;
+function TPartitions.AddPartition(PartNum:DWORD; PPartTab: PArray16): TPartition;
 begin
   Result:=TPartition(Add);
   if Assigned(Result) then with Result do
   begin
-    FActive:=  PPartTab^[0]=$80;
+    FPartN := PartNum;
+    FActive := PPartTab^[0]=$80;
     FPartType:=PPartTab^[4];
     FPartBeg:= PDWORD(@PPartTab^[8])^;
     FPartSize:=PDWORD(@PPartTab^[12])^;
@@ -676,7 +679,7 @@ begin
      pt:=MBR_Table;
      if MBRScheme then for i:=0 to 3 do
        if TmpBuf[i*16+ pt + MBR_PART_TYPE]<>0 then                      // nondelete partitions
-         AddPartition( PArray16(@TmpBuf[i*16+ pt]) );
+         AddPartition(i, PArray16(@TmpBuf[i*16+ pt]));
   end;
  end;
 end;

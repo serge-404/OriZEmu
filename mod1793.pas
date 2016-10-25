@@ -500,7 +500,7 @@ begin
   FDrive[0]:='';    FDrive[1]:='';
   FOnAccess:=nil;
   Reset;
-  USE_DPBLESS_DISKS:=0;                 {added for HD-formats support}
+  Vars^.USE_DPBLESS_DISKS:=0;                 {added for HD-formats support}
   FMaxSectors[0]:=_MAX_SECTORS;  FMaxSectors[1]:=_MAX_SECTORS;
   FMaxTracks[0]:=_MAX_TRACKS;    FMaxTracks[1]:=_MAX_TRACKS;
 end;
@@ -542,11 +542,11 @@ begin
       if FHD[Index] then           
       begin
         GetBOOT(FDrive[Index], FStream[Index], -1);
-        if not BOOT.BOOTvalid then                                            // wrong CRC
+        if not Vars^.BOOT.BOOTvalid then                                            // wrong CRC
           ClearDrive
         else begin
-          FMaxSectors[Index]:=BOOT.DPB.SEC;
-          FMaxTracks[Index]:=BOOT.DPB.TRK;
+          FMaxSectors[Index]:=Vars^.BOOT.DPB.SEC;
+          FMaxTracks[Index]:=Vars^.BOOT.DPB.TRK;
         end;
       end;
 {}

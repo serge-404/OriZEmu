@@ -6,7 +6,7 @@
 //          (Orion HDD Image files). Allow copy/extract CP/M files     //
 //          to/from OHI "hdd image" such simple as processing any      //
 //          archives in TotalCommander interface. PC MBR partitioning  //
-//          scheme supported.    Version 1.01.                         //
+//          scheme supported.    Version 1.06.                         //
 //                                                                     //
 //   How to install this plugin (32 bit only) in TotalCommander:       //
 //          1. Unzip odi.wcx, system.bin to any directory              //
