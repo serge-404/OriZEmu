@@ -161,6 +161,8 @@ type
     F9SP1: TMenuItem;
     F9PC1: TMenuItem;
     F9Ix2: TMenuItem;
+    ItemWrPause: TMenuItem;
+    ItemModiPause: TMenuItem;
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure pbDrawPaint(Sender: TObject);
@@ -204,6 +206,7 @@ type
     procedure cbConditionsClick(Sender: TObject);
     procedure F9Click(Sender: TObject);
     procedure btnPageAddressClick(Sender: TObject);
+    procedure ItemWrPauseClick(Sender: TObject);
   private
     { Private declarations }
     DisSL: TStringList;
@@ -227,7 +230,7 @@ type
     procedure InitRAMArr;
     procedure InitEmulator;
     procedure InitSGRegPort;
-    procedure InitDezSL;
+    procedure InitDizSL;
     procedure AppKeyDown(var msg : TMsg; var Handled: Boolean);
     procedure MyIdleHandler(Sender: TObject; var Done: Boolean);
     procedure SaveSnapshot(Pages: integer; FName: string);
@@ -720,6 +723,7 @@ begin
 {}
     InitEthernet();
 {}
+    FillChar(CheckPort, sizeof(CheckPort), 0);
     InitEmulator();
     IniManager.RecentFilesMenuItem:=ItemRecent;
     IniManager.OnRecentFilesItemClick:=ItemRecentClick;
@@ -854,6 +858,18 @@ begin
 end;
 
 procedure TfrmMain.InitSGRegPort;
+  procedure PortDumpTitles(SG:TStringGrid; offs:integer);
+  var ii:integer;
+  begin
+    for ii:=0 to 6 do with SG do
+    begin
+      Cells[0, ii] := IntToHex(offs+ii,2);
+      if CheckPort[offs+ii]=1 then
+        Cells[0,ii]:=Cells[0,ii]+'  @'
+      else if CheckPort[offs+ii]=2 then
+        Cells[0,ii]:=Cells[0,ii]+'  #';
+    end;
+  end;
 begin
   with SGFlags do
   begin
@@ -883,36 +899,9 @@ begin
     Cells[0, 5] := 'IY'+ConditionIY;
     Cells[0, 6] := 'IR'+ConditionIR;
   end;
-  With SGPortDump do
-  begin
-    Cells[0, 0] := 'F8';
-    Cells[0, 1] := 'F9';
-    Cells[0, 2] := 'FA';
-    Cells[0, 3] := 'FB';
-    Cells[0, 4] := 'FC';
-    Cells[0, 5] := 'FE';
-    Cells[0, 6] := 'FF';
-  end;
-  With SGPort1Dump do
-  begin
-    Cells[0, 0] := '00';
-    Cells[0, 1] := '01';
-    Cells[0, 2] := '02';
-    Cells[0, 3] := '03';
-    Cells[0, 4] := '04';
-    Cells[0, 5] := '05';
-    Cells[0, 6] := '06';
-  end;
-  With SGPort2Dump do
-  begin
-    Cells[0, 0] := '07';
-    Cells[0, 1] := '08';
-    Cells[0, 2] := '09';
-    Cells[0, 3] := '0A';
-    Cells[0, 4] := '0B';
-    Cells[0, 5] := '0C';
-    Cells[0, 6] := '0D';
-  end;
+  PortDumpTitles(SGPortDump,$F8);
+  PortDumpTitles(SGPort1Dump,0);
+  PortDumpTitles(SGPort2Dump,7);
 end;
 
 procedure TfrmMain.ShowSGReg;
@@ -959,8 +948,10 @@ begin
   end;
   With SGHistory do
   begin
-    Cells[0, 0]:=Cells[0, 1];
-    Cells[1, 0]:=Cells[1, 1];
+    deltaPC:=Disasm(prevPC, DisStr)-prevPC;
+    Cells[0, 0]:=IntToHex(prevPC, 4)+'  '+HexStr(prevPC, deltaPC);
+    Cells[1, 0]:=DisStr;
+
     disPC:=RegPC;
 
     deltaPC:=Disasm(disPC, DisStr)-disPC;
@@ -1503,7 +1494,7 @@ begin
   InitRAMArr();
   InitEmulator();
   DisSL:=TStringList.Create;
-  InitDezSL();
+  InitDizSL();
   Global_TStates := -glTstatesPerInterrupt;
 end;
 
@@ -1519,7 +1510,7 @@ begin
   end;
 end;
 
-procedure TfrmMain.InitDezSL;
+procedure TfrmMain.InitDizSL;
 var i: integer;
     ss, sss: string;
 begin
@@ -2047,8 +2038,6 @@ begin
   ShowSGReg;
   ShowSGPort;
   ShowMemDump(True);
-  SGHistory.Cells[0, 0]:='';            // why?
-  SGHistory.Cells[1, 0]:='';
 end;
 
 procedure TfrmMain.SetFormSize;
@@ -2276,6 +2265,8 @@ end;
 procedure TfrmMain.DebuggerMenuPopup(Sender: TObject);
 begin
   ItemPause.Enabled:=not CPUPaused;
+  ItemWrPause.Enabled:=CPUPaused and (SGPortDump.Focused or SGPort1Dump.Focused or SGPort2Dump.Focused);
+  ItemModiPause.Enabled:=CPUPaused and (SGPortDump.Focused or SGPort1Dump.Focused or SGPort2Dump.Focused);
   ItemModify.Enabled:=CPUPaused;
   ItemSetCondition.Enabled:=CPUPaused and (not SGPortDump.Focused) and
                             (not SGPort1Dump.Focused) and (not SGPort2Dump.Focused);
@@ -2582,6 +2573,46 @@ end;
 procedure TfrmMain.MEDumpAddrChange(Sender: TObject);
 begin
   ShowMemDump(True);
+end;
+
+procedure TfrmMain.ItemWrPauseClick(Sender: TObject);
+  procedure TriggerPortPause(SG: TStringGrid);
+  begin
+    with SG do begin
+      if Length(Cells[0,SG.Row])>3 then
+        Cells[0,SG.Row]:=copy(Cells[0,SG.Row],1,2)
+      else
+        if TMenuItem(Sender).tag=1 then
+          Cells[0,SG.Row]:=Cells[0,SG.Row]+'  @'
+        else
+          Cells[0,SG.Row]:=Cells[0,SG.Row]+'  #';
+      Update;
+    end;
+  end;
+var PortOffset:integer;
+begin
+  PortOffset:=-1;
+  if SGPortDump.Focused then
+  begin
+    PortOffset:=$F8+SGPortDump.Row;
+    TriggerPortPause(SGPortDump);
+  end
+  else if SGPort1Dump.Focused then
+  begin
+    PortOffset:=$00+SGPortDump.Row;
+    TriggerPortPause(SGPort1Dump);
+  end
+  else if SGPort2Dump.Focused then
+  begin
+    PortOffset:=$07+SGPortDump.Row;
+    TriggerPortPause(SGPort2Dump);
+  end;
+  if (PortOffset>=0) then begin
+    if CheckPort[Lo(PortOffset)]<>0 then
+      CheckPort[Lo(PortOffset)]:=0
+    else
+      CheckPort[Lo(PortOffset)]:=TMenuItem(Sender).tag;
+  end;
 end;
 
 initialization

@@ -223,6 +223,7 @@ var
   OrionPRO_DIP_SW: integer;
 
   MainPort: TMainPort;
+  CheckPort: TMainPort;
 
   ScrWidth: integer = SCR_WIDTH_384;      // 0=SCR_WIDTH_384, 1=SCR_WIDTH_400, 2=SCR_WIDTH_480, 3=SCR_WIDTH_512
   ScrZoom: integer = SCR_ZOOM_X2;         // 0=SCR_ZOOM_X1,  1=SCR_ZOOM_X2,  3=SCR_ZOOM_X25,  4=SCR_ZOOM_X3
@@ -341,6 +342,7 @@ var
   // Stack pointer and program counter
   regSP: integer;
   regPC: integer;
+  prevPC:integer;
 
   // Interrupt registers and flip-flops, and refresh registers
   intI: integer;
@@ -937,20 +939,22 @@ end;
 
 procedure outb(port : integer; outbyte : integer);
 var bb, pF9: byte;
+    dopause:boolean;
     loport:integer;
 begin
+  loport:=Lo(port);
   if (Z80CardMode>=Z80CARD_MAXIMAL) then begin   // Orion-PRO IDE-RTC card also available for advanced O-128 configuration
     if (Z80CardMode>=Z80_ORIONPRO_v2) then begin                   // Orion-PRO
-     case Lo(Port) of
+     case LoPort of
       $08: if outbyte>=RAMPagesCount then outbyte:=outbyte mod RAMPagesCount;
-      $10..$14: RAMPORTSet(FDC_ADDR1+Lo(Port), outbyte);       // FDD
-      $18..$1B: RAMPORTSet(KBD_ADDR0+Lo(Port)-$18, outbyte);   // BB55 (i8255) - keyboard
-      $28..$2B: RAMPORTSet(ROMD_ADDR0+Lo(Port)-$28, outbyte);  // BB55 (i8255) - Rom-Disk
+      $10..$14: RAMPORTSet(FDC_ADDR1+LoPort, outbyte);       // FDD
+      $18..$1B: RAMPORTSet(KBD_ADDR0+LoPort-$18, outbyte);   // BB55 (i8255) - keyboard
+      $28..$2B: RAMPORTSet(ROMD_ADDR0+LoPort-$28, outbyte);  // BB55 (i8255) - Rom-Disk
       $3E: AYWriteReg(glSoundRegister, outbyte);               // запись данных муз. процессора
       $3F: glSoundRegister := outbyte And $F;                  // запись номера регистра муз. процессора
      end;
     end;
-    case Lo(Port) of
+    case LoPort of
       FMC_DATA50: case RTCmode of
                     K512vi50:  F146818[F146818.Addr]:=outbyte;
                     DS1307: ;
@@ -969,17 +973,16 @@ begin
       pro_cyl_msb,    // st.bajt nom.cilindra       - W                    // adr=5
       pro_head,       // registr golowki/ustrojstwa - W                    // adr=6
       pro_command:    // registr komand             - W                    // adr=7
-                   IdeProController.IdeReg[Lo(Port)]:=outbyte;
+                   IdeProController.IdeReg[LoPort]:=outbyte;
     end;
   end
   else if Z80CardMode=Z80CARD_MOSCOW then
   begin
-    loport:=Lo(port);
     if loport>=$F0 then pF9:=0
     else pF9:=MainPort[$F9];
     RAMArr[pF9, loport*256+loport] := outbyte;   // в стандартном Орионе портится ОЗУ под портами
   end;                                                         // Orion-128, Orion-PRO
-  case Lo(Port) of
+  case LoPort of
     $F8: begin
            bb:=MainPort[$F8];
            if bb<>outbyte then
@@ -1005,7 +1008,9 @@ begin
          end;
 {$ENDIF}
   end;
-  MainPort[Lo(Port)]:=outbyte;
+  dopause:=(CheckPort[LoPort]=1) or                                           // port write
+          ((CheckPort[LoPort]=2)and(MainPort[LoPort]<>outbyte));              // port modify
+  MainPort[LoPort]:=outbyte;
 {$IFDEF USE_SOUND}
   case port of
     $FFFD:  glSoundRegister := outbyte And $F;
@@ -1013,24 +1018,27 @@ begin
     $BEFD:  AYWriteReg(glSoundRegister, outbyte);
   end;
 {$ENDIF}
+  if dopause then
+    frmMain.ActPauseExecute(frmMain);
 End;
 
 Function inb(port : integer) : integer;
 var loport, pF9: integer;
 begin
   Result := $FF;
+  loport:=Lo(port);
   if (Z80CardMode>=Z80CARD_MAXIMAL) then begin   // Orion-PRO IDE-RTC card also available for advanced O-128 configuration
     if Z80CardMode>=Z80_ORIONPRO_v2 then begin                    // Orion-PRO
-     case Lo(Port) of
+     case LoPort of
       $0:       Result:=lo(OrionPRO_DIP_SW);
-      $01..$0B: Result:=MainPort[Lo(Port)];
-      $10..$14: Result:=RAMPORTGet(FDC_ADDR1+Lo(Port));   // FDD
-      $18..$1B: Result:=RAMPORTGet(KBD_ADDR0+Lo(Port));   // BB55 (i8255) - keyboard
-      $28..$2B: Result:=RAMPORTGet(ROMD_ADDR0+Lo(Port));  // BB55 (i8255) - Rom-Disk
+      $01..$0B: Result:=MainPort[LoPort];
+      $10..$14: Result:=RAMPORTGet(FDC_ADDR1+LoPort);   // FDD
+      $18..$1B: Result:=RAMPORTGet(KBD_ADDR0+LoPort);   // BB55 (i8255) - keyboard
+      $28..$2B: Result:=RAMPORTGet(ROMD_ADDR0+LoPort);  // BB55 (i8255) - Rom-Disk
       $3F: Result := AYPSG.Regs[glSoundRegister];         // чтение данных муз. процессора
      end;
     end;
-    case Lo(Port) of
+    case LoPort of
       FMC_DATA50: case RTCmode of
                     K512vi50:  Result:=F146818[F146818.Addr];
                     DS1307: ;
@@ -1049,12 +1057,11 @@ begin
       pro_cyl_msb,    // st.bajt nom.cilindra       - W                    // adr=5
       pro_head,       // registr golowki/ustrojstwa - W                    // adr=6
       pro_status:     // registr sostoqniq          -  R                   // adr=7
-                   Result:=IdeProController.IdeReg[Lo(Port)];
+                   Result:=IdeProController.IdeReg[LoPort];
     end;
   end
   else if Z80CardMode=Z80CARD_MOSCOW then
   begin
-    loport:=Lo(port);
     if loport>=$F0 then pF9:=0
     else pF9:=MainPort[$F9];
     Result:=RAMArr[pF9, loport*256+loport];   // в стандартном Орионе портится ОЗУ под портами

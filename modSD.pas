@@ -93,6 +93,7 @@ MSX:
 { Implemented commands }
   CMD0 =   $40;   // GO_IDLE_STATE
   CMD1 =   $41;   // SEND_OP_COND
+  CMD8 =   $48;   // 
   CMD9 =   $49;   // SEND_CSD
   CMD10 =  $4A;   // SEND_CID
   CMD16 =  $50;   // SET_BLOCKLEN
@@ -518,6 +519,18 @@ begin
               spiResponseEnd := pointer(integer(spiResponsePtr)+1);
               SDSeekToOffset(spiArg, False);
               spiByteCount := sectorSize;               // SD_BLOCK_SIZE;
+            end;
+            CMD8: begin                                 // $49 = SEND_CSD
+              SPDR:=$FF;                                // does 8-bit NCR on next clock period   (8-clock wait)
+              spiState := SPI_RESPOND_SINGLE;
+              spiResponseBuffer[0] := $01;              // R1 = no error
+              spiResponseBuffer[1] := $00;              //
+              spiResponseBuffer[2] := $00;              //
+              spiResponseBuffer[3] := $01;              // normal voltage card
+              spiResponseBuffer[4] := $AA;
+              spiResponsePtr := @spiResponseBuffer[0];
+              spiResponseEnd := pointer(integer(spiResponsePtr)+5);
+              spiByteCount := 0;
             end;
             CMD9: begin                                 // $49 = SEND_CSD
               SPDR:=$FF;                                // does 8-bit NCR on next clock period   (8-clock wait)

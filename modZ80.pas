@@ -4401,6 +4401,7 @@ begin
 {$IFDEF DEBUG}
       PrevLocalTstates:=local_tstates;
 {$ENDIF}
+      prevPC:=regPC;
       If (local_tstates >= 0) Then  // Trigger an interrupt
       begin
 {$IFDEF USE_DEBUGGING}
@@ -6007,6 +6008,7 @@ end;
 
 procedure Z80Reset;
 begin
+    prevPC:= 0;
     regPC := 0;
     regSP := 0;
     regA := 0;
