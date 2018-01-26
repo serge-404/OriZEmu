@@ -241,7 +241,7 @@ type
   end;
 
 var SDController: TSDController;
-    SDScheme: integer; 
+    SDScheme: integer;
     SDImage: String;
     SDRO: boolean;
     FIDBuf: array[0..SD_BLOCK_SIZE] of byte;
@@ -249,16 +249,6 @@ var SDController: TSDController;
 implementation
 
 Uses modOrion;
-
-{$IFDEF SD_DEBUG}
-function ascii(ch:byte):char;
-begin
-   if (ch >= 32)and(ch<=127) then
-     Resyult:=ch
-   else
-     Result:='.';
-end;
-{$ENDIF}
 
 procedure SPI_DEBUG(fmt: string; const arr: array of const);
 begin
@@ -426,15 +416,15 @@ begin
   with Fparams do
   begin
     // SPI state machine
-    SPI_DEBUG('byte: %0.2x\n',[spiByte]);
-    SPI_DEBUG('state: %d\n', [ord(spiState)]);
+    SPI_DEBUG('byte: %0.2x',[spiByte]);
+    SPI_DEBUG('state: %d', [ord(spiState)]);
     case (spiState) of
       SPI_PWR_STATE:
         if ((R0 and SD_CS)=0) and (InpBitCount>=74) then
           spiState := SPI_IDLE_STATE;
       SPI_IDLE_STATE:
         if(spiByte = $0ff) then begin
-            SPDR := $01;                         // echo back that we're ready
+            SPDR := $FF;                        // $01;                         // echo back that we're ready
         end
         else begin
           spiCommand := spiByte;
@@ -443,35 +433,35 @@ begin
         end;
       SPI_ARG_X_HI:
         begin
-          SPI_DEBUG('x hi: %0.2X\n',[spiByte]);
+          SPI_DEBUG('x hi: %0.2X',[spiByte]);
           PspiArgB(@spiArg)^.spiArgXhi := spiByte;
           SPDR := $FF;
           spiState := SPI_ARG_X_LO;
         end;
       SPI_ARG_X_LO:
         begin
-          SPI_DEBUG('x lo: %0.2X\n', [spiByte]);
+          SPI_DEBUG('x lo: %0.2X', [spiByte]);
           PspiArgB(@spiArg)^.spiArgXlo := spiByte;
           SPDR := $FF;
           spiState := SPI_ARG_Y_HI;
         end;
       SPI_ARG_Y_HI:
         begin
-          SPI_DEBUG('y hi: %0.2X\n', [spiByte]);
+          SPI_DEBUG('y hi: %0.2X', [spiByte]);
           PspiArgB(@spiArg)^.spiArgYhi := spiByte;
           SPDR := $FF;
           spiState := SPI_ARG_Y_LO;
         end;
       SPI_ARG_Y_LO:
         begin
-          SPI_DEBUG('y lo: %0.2X\n', [spiByte]);
+          SPI_DEBUG('y lo: %0.2X', [spiByte]);
           PspiArgB(@spiArg)^.spiArgYlo := spiByte;
           SPDR := $FF;
           spiState := SPI_ARG_CRC;
         end;
       SPI_ARG_CRC:
         begin
-          SPI_DEBUG('SPI - CMD%d (%0.2X) X:%0.4X Y:%0.4X CRC: %0.2X\n',
+          SPI_DEBUG('SPI - CMD%d (%0.2X) X:%0.4X Y:%0.4X CRC: %0.2X',
                   [spiCommand xor $40, spiCommand, PspiArgW(@spiArg)^.spiArgX, PspiArgW(@spiArg)^.spiArgY, spiByte]);
         // ignore CRC and process commands
           case (spiCommand) of
@@ -660,7 +650,7 @@ begin
       SPI_RESPOND_SINGLE:
         begin
           SPDR := spiResponsePtr^;
-          SPI_DEBUG('SPI - Respond: %0.2X\n', [SPDR]);
+          SPI_DEBUG('SPI - Respond: %0.2X', [SPDR]);
           inc(spiResponsePtr);
           if (spiResponsePtr = spiResponseEnd) then
           begin
@@ -685,7 +675,7 @@ begin
       SPI_RESPOND_MULTI:
         begin
           SPDR := spiResponsePtr^;
-          SPI_DEBUG('SPI - Respond: %0.2X\n', [SPDR]);
+          SPI_DEBUG('SPI - Respond: %0.2X', [SPDR]);
           inc(spiResponsePtr);
           if (spiResponsePtr = spiResponseEnd) then
             spiState := SPI_READ_MULTIPLE_BLOCK;
@@ -704,7 +694,7 @@ begin
           else
           begin
             SPDR := SDReadByte();
-            SPI_DEBUG('SPI - Data[%d]: %0.2X\n', [sectorSize {SD_BLOCK_SIZE} -spiByteCount, SPDR]);
+            SPI_DEBUG('SPI - Data[%d]: %0.2X', [sectorSize {SD_BLOCK_SIZE} -spiByteCount, SPDR]);
             dec(spiByteCount);
             if (spiByteCount = 0) then
             begin
@@ -723,7 +713,7 @@ begin
       SPI_WRITE_SINGLE:
         begin
           SPDR := spiResponsePtr^;
-          SPI_DEBUG('SPI - Respond: %0.2X\n', [SPDR]);
+          SPI_DEBUG('SPI - Respond: %0.2X', [SPDR]);
           if (spiResponsePtr <> spiResponseEnd) then
             inc(spiResponsePtr)
           else begin
@@ -741,7 +731,7 @@ begin
       SPI_WRITE_SINGLE_BLOCK:
         begin
           SDWriteByte(spiByte);                                         // SPDR
-          SPI_DEBUG('SPI - Data[%d]: %0.2X\n', [spiByteCount,SPDR]);
+          SPI_DEBUG('SPI - Data[%d]: %0.2X', [spiByteCount,SPDR]);
           SPDR := $FF;
           dec(spiByteCount);
           if (spiByteCount = 0) then
