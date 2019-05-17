@@ -88,6 +88,7 @@ const
   MBR_PART_TYPE	= 4;
 
   PhySectorSize = 512;
+  PartitionPrefix = 'Partition_';
   SystemSector = 'UseThis_ToAccess_MBR';
   SystemMBR = 'mbr.bin';
   SystemPartN = $FF;
@@ -559,7 +560,7 @@ end;
 
 function TPartition.GetPartName: string;
 begin
-  Result:=Format('Partition_%d--%s,%s',[Index,PartTypeStr(),PartSizeStr()]);
+  Result:=Format('%s%d--%s,%s',[PartitionPrefix, Index, PartTypeStr(), PartSizeStr()]);
 end;
 
 function TPartition.PartSizeStr: string;
@@ -794,6 +795,17 @@ begin
   Result := 0;
 end;
 
+function SkipPartInfo(xPath: PChar):Pchar;
+var tmp: PChar;
+begin
+  Result:=xPath;
+  if StrPos(xPath, PartitionPrefix)=xPath then begin
+    tmp:=StrPos(xPath, '\');
+    if tmp<>nil then
+      Result:=@tmp[1];
+  end
+end;
+
 function PackFiles(PackedFile, SubPath, SrcPath, AddList: PChar; Flags: integer): integer; stdcall;
 var PartNum:byte;
     FS, FSOut: TFileStream;
@@ -829,7 +841,7 @@ begin
     else begin
       if (SubPath=nil)and(pos('\',string(AddList))=0) then
         PartNum:=0;
-      Result:=Partitions[ PartNum ].FFuncSet.FPackFiles(PackedFile, SubPath, SrcPath, AddList, Flags);
+      Result:=Partitions[ PartNum ].FFuncSet.FPackFiles(PackedFile, SkipPartInfo(SubPath), SrcPath, AddList, Flags);
     end;
   end;
  end;
