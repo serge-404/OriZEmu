@@ -81,6 +81,9 @@ const
   stUZIXpartID           = stUZIX+'partID';
   stCPMpartID            = stCPM+'partID';
   stFATpartID            = stFAT+'partID';
+  stUZIXlib              = stUZIX+'lib';
+  stCPMlib               = stCPM+'lib';
+  stFATlib               = stFAT+'lib';
   stOpenArchivePart      = 'OpenArchivePart';
   stReadHeader           = 'ReadHeader';
   stProcessFile          = 'ProcessFile';
@@ -222,8 +225,14 @@ type
   TPartitions = class(TCollection)
   private
     FLibList: string;
+    FUZIXlib: string;
+    FCPMlib: string;
+    FFATlib: string;
     FArcFName: string;
     FMBRScheme: boolean;
+    procedure SetCPMlib(const Value: string);
+    procedure SetFATlib(const Value: string);
+    procedure SetUZIXlib(const Value: string);
   protected
     function GetItem(Index: Integer): TPartition;
     procedure SetItem(Index: Integer; Value: TPartition);
@@ -235,6 +244,9 @@ type
     function ByPartN(ParN:integer): TPartition;
     function IndexByPartN(ParN:integer): integer;
     property LibList:string read FLibList write SetLibList;
+    property UZIXlib:string read FUZIXlib write SetUZIXlib;
+    property CPMlib:string read FCPMlib write SetCPMlib;
+    property FATlib:string read FFATlib write SetFATlib;
     property ArcFName:string read FArcFName write SetArcFName;
     property MBRScheme:boolean read FMBRScheme;
     property Items[Index: Integer]:TPartition read GetItem write SetItem; default;
@@ -758,6 +770,22 @@ begin
  end;
 end;
 
+procedure TPartitions.SetCPMlib(const Value: string);
+begin
+  if ExtractFileName(Value)=Value then
+    FCPMlib:=AddSlash(ExtractFilePath(Vars^.IniFileName))+Value
+  else
+    FCPMlib := Value;
+end;
+
+procedure TPartitions.SetFATlib(const Value: string);
+begin
+  if ExtractFileName(Value)=Value then
+    FFATlib:=AddSlash(ExtractFilePath(Vars^.IniFileName))+Value
+  else
+    FFATlib := Value;
+end;
+
 procedure TPartitions.SetItem(Index: Integer; Value: TPartition);
 begin
   (inherited Items[Index]).Assign(TCollectionItem(Value));
@@ -878,6 +906,7 @@ var NewTabIndex, ParN, idx: integer;
     Fbeg, NextBeg: integer;
     FreeAvail: TStringList;
     libHandle:HMODULE;
+    CreateArchivePart: TCreateArchivePart;
     PFreeSeg: PFreeSegment;
     NewPartition:TPartition;
     FS: TFileStream;
@@ -898,6 +927,24 @@ var NewTabIndex, ParN, idx: integer;
     else
       ii:=FreeAvail.Add(SizeToStr(SegSize));                                    // or add if SegSize is maximum
     FreeAvail.Objects[ii]:=pointer(PFreeSeg);
+  end;
+  procedure mkfs(LibName:string);
+  begin
+    begin
+      libHandle:=LoadLibrary(PChar(LibName));
+      if libHandle=0 then
+        raise Exception.CreateFmt('Error during loading '#13#10#10'`%s`', [LibName]);
+      CreateArchivePart:=GetProcAddress(libHandle, stCreateArchivePart);
+      if (Assigned(CreateArchivePart)) then
+      begin
+        Result:=CreateArchivePart(PFile, FBeg, NewTabIndex, PSize);
+        FreeLibrary(libHandle);
+      end
+      else begin
+        FreeLibrary(libHandle);
+        raise Exception.CreateFmt('Error obtainig %s entry point in library'#13#10#10'`%s`', [stCreateArchivePart, LibName]);
+      end;
+    end
   end;
 begin
   Result:=E_NOT_SUPPORTED;
@@ -977,12 +1024,9 @@ begin
               if PType=CPMpartID then
                 Result:=CPMCreateFilesystem(StrPas(PFile), FBeg*PhySectorSize, PSize*PhySectorSize)
               else if PType=UZIXpartID then
-              begin
-//                Result:=NewPartition.FFuncSet.FCreateArchivePart(PFile, FBeg, NewTabIndex, PSize);
-              end
+                mkfs(Partitions.UZIXlib)
               else if PType=FATpartID then
-              begin
-              end;
+                mkfs(Partitions.FATlib);
               if Result<>0 then
                 MessageBox(0, PChar('Can not create filesystem in partition of file  '+StrPas(PFile)), 'Write Error', MB_OK+MB_ICONERROR);
             end
@@ -1330,6 +1374,14 @@ begin
  end;
 end;
 
+procedure TPartitions.SetUZIXlib(const Value: string);
+begin
+  if ExtractFileName(Value)=Value then
+    FUZIXlib:=AddSlash(ExtractFilePath(Vars^.IniFileName))+Value
+  else
+    FUZIXlib := Value;
+end;
+
 initialization
   new(Vars);
   with Vars^ do begin
@@ -1343,6 +1395,9 @@ initialization
     else
       IniFileName:='Ohi.ini';
     Partitions.LibList:=GetPrivateString(stSectionCommon, stLibList, 'odi.wcx');
+    Partitions.UzixLib:=GetPrivateString(stSectionCommon, stUZIXlib, 'udi.wcx');
+    Partitions.CPMLib:=GetPrivateString(stSectionCommon, stCPMlib, 'odi.wcx');
+    Partitions.FATLib:=GetPrivateString(stSectionCommon, stFATlib, 'fdi.wcx');
     DefaultOScode:=trim(GetPrivateString(stSectionCommon, stOScode, 'system.hdd'));
     if ExtractFileName(DefaultOScode)=DefaultOScode then
       DefaultOScode:=AddSlash(ExtractFilePath(IniFileName))+DefaultOScode;
@@ -1355,6 +1410,9 @@ initialization
 finalization
   with Vars^ do begin
     WritePrivateString(stSectionCommon, stLibList, Partitions.LibList);
+    WritePrivateString(stSectionCommon, stUZIXlib, Partitions.UZIXlib);
+    WritePrivateString(stSectionCommon, stCPMlib, Partitions.CPMlib);
+    WritePrivateString(stSectionCommon, stFATlib, Partitions.FATlib);
     WritePrivateString(stSectionCommon, stOsCode, DefaultOScode);
     WritePrivateInt(stSectionCommon, stDefFSSize, DefaultFSsize);
     WritePrivateInt(stSectionCommon, stUZIXpartID, UZIXpartID);
