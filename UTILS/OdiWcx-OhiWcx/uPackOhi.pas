@@ -75,6 +75,12 @@ const
   stLibList              = 'LibList';
   stOScode               = 'OScode';
   stDefFSSize            = 'DefaultFSsize';
+  stCPM = 'CPM';
+  stUZIX= 'UZIX';
+  stFAT = 'FAT';
+  stUZIXpartID           = stUZIX+'partID';
+  stCPMpartID            = stCPM+'partID';
+  stFATpartID            = stFAT+'partID';
   stOpenArchivePart      = 'OpenArchivePart';
   stReadHeader           = 'ReadHeader';
   stProcessFile          = 'ProcessFile';
@@ -83,15 +89,19 @@ const
   stDeleteFiles          = 'DeleteFiles';
   stGetPartInfo          = 'GetPartInfo';
   stCanYouHandleThisFile = 'CanYouHandleThisFile';
+  stCreateArchivePart    = 'CreateArchivePart';
 
   MBR_Table = 446;
   MBR_PART_TYPE	= 4;
 
+  DiskOffset=8;                                                             // offset from disk start
+  MinPartSize=512;                                                          // minimum partition size = 256kb
   PhySectorSize = 512;
   PartitionPrefix = 'Partition_';
   SystemSector = 'UseThis_ToAccess_MBR';
   SystemMBR = 'mbr.bin';
   SystemPartN = $FF;
+  DoInit = True;
 
   ZBootLoader: array [0..433] of byte =(
 $C3, $08, $00, $00, $EE, $00, $00, $00, $0E, $05, $11, $1E, $F3, $AF, $12, $0D,
@@ -128,6 +138,7 @@ $0D, $0A);
 
 type
   TOpenArchivePart=function(ArcName: PChar; PartOffset: DWORD; PartN: DWORD): THandle; stdcall;
+  TCreateArchivePart=function(ArcName: PChar; PartOffset: DWORD; PartN: DWORD; PartSize: DWORD): THandle; stdcall;
   TReadHeader=function(hArcData: THandle; var HeaderData: THeaderData): integer; stdcall;
   TProcessFile=function(hArcData: THandle; Operation: integer; DestPath, DestName: PChar): integer; stdcall;
   TCloseArchive=function(hArcData: THandle): integer; stdcall;
@@ -146,6 +157,7 @@ type
               FDeleteFiles:     TDeleteFiles;
               FGetPartInfo:     TGetPartInfo;
               FCanYouHandleThisFile: TCanYouHandleThisFile;
+              FCreateArchivePart: TCreateArchivePart;
             end;
 
   TArray16 = array [0..15] of byte;
@@ -183,6 +195,7 @@ type
     FPartType: byte;
     FPartBeg:  DWORD;
     FPartSize: DWORD;
+    FPartTab:  TArray16;
     FLibHandle:HMODULE;
     FFuncSet:  TFuncSet;
   protected
@@ -219,6 +232,8 @@ type
   public
     constructor Create; virtual;
     function AddPartition(PartNum:DWORD; PPartTab: PArray16): TPartition;
+    function ByPartN(ParN:integer): TPartition;
+    function IndexByPartN(ParN:integer): integer;
     property LibList:string read FLibList write SetLibList;
     property ArcFName:string read FArcFName write SetArcFName;
     property MBRScheme:boolean read FMBRScheme;
@@ -227,7 +242,7 @@ type
 
 
 
-function OhiCreateArchive(ArcFName: string): integer;
+function CPMCreateFilesystem(ArcFName: string; PartOffs, PartSize:DWORD): integer;
 {}
 function OpenArchive(var ArchiveData: TOpenArchiveData): THandle; stdcall;
 function ReadHeader(hArcData: THandle; var HeaderData: THeaderData): integer; stdcall;
@@ -256,17 +271,20 @@ type
   TVars = record
     FileList: TList;
     Partitions: TPartitions;
-    TmpBuf: array[0..512] of byte;
-    TmpBuf1k: array[0..1024] of byte;
+    TmpBuf: array[0..PhySectorSize] of byte;
+    TmpBuf1k: array[0..2*PhySectorSize] of byte;
     FileListPos: integer;
-    DefaultFSsize: integer;    // 16Mb
+    DefaultFSsize: DWORD;    // 16Mb
     DefaultOScode: string;
+    UZIXpartID: integer;
+    CPMpartID: integer;
+    FATpartID: integer;
     ArcFileName: string;
     IniFileName: string;
     BootDPB: TBootDPB;
   end;
   PVars = ^TVars;
-  
+
 var
   Vars: PVars;
 
@@ -288,13 +306,6 @@ begin
 end;
 
 //////////////////// strings utilities ////////////////////////
-
-function AddSlash(str: string): string;
-begin
-  Result:=str;
-  if (Length(Result)>0) and (Result[Length(Result)]<>'\')
-  then Result:=Result+'\';
-end;
 
 function LeftSubstrList(var s:String; DelimList: string): String;
 var ch:char;
@@ -324,6 +335,45 @@ end;
 Function LeftSubstr(var s:String): String;
 begin
   Result:=LeftSubstrList(s, ' ,');
+end;
+
+function AddSlash(str: string): string;
+begin
+  Result:=str;
+  if (Length(Result)>0) and (Result[Length(Result)]<>'\')
+  then Result:=Result+'\';
+end;
+
+const GB=1024*1024*1024;
+      MB=1024*1024;
+      KB=1024;
+
+function SizeToStr(sz: DWORD):string;
+begin
+    if (sz div GB > 0) then Result:=IntToStr(sz div GB)+'G'
+    else if (sz div MB > 0) then Result:=IntToStr(sz div MB)+'M'
+    else Result:=IntToStr(sz div KB)+'K';
+end;
+
+function StrToSize(st: string):DWORD;
+var SMult: integer;
+    ch:char;
+begin
+    SMult:=1;
+    Result:=0;
+    if Length(st)=0 then exit;
+    ch:=st[Length(st)];
+    while (not(ch in ['0'..'9'])) do begin
+      case ch of
+        'K','k': SMult:=KB;
+        'M','m': SMult:=MB;
+        'G','g': SMult:=GB;
+      end;
+      delete(st,Length(st),1);
+      if Length(st)=0 then break;
+      ch:=st[Length(st)];
+    end;
+    Result:=StrToIntDef(st,0)*SMult;
 end;
 
 function GetPrivateString(SectionName,KeyName,DefaultValue:string):string;
@@ -377,38 +427,6 @@ begin
       Delete(Count-1);
     end;
 end;
-
-{
-function GetVolumeName(): string;
-var bb: byte;
-begin
-  if BOOT.LBLvalid then
-  begin
-    bb:=BOOT.CODE[$30];
-    BOOT.CODE[$30]:=0;
-    Result:=trim(StrPas(BOOT.LBL));
-    BOOT.CODE[$30]:=bb;
-  end
-  else
-    Result:='';
-end;
-
-function SetVolumeName(VolName: string): boolean;
-var xsum:byte;
-    i: integer;
-begin
-  Result:=False;
-  if (not BOOT.BOOTvalid) or (not BOOT.LBLvalid) then exit;
-  xsum:=BOOT.Code[$30];
-  StrPLCopy(BOOT.LBL, padr(VolName, sizeof(BOOT.LBL), ' '), sizeof(BOOT.LBL));
-  BOOT.Code[$30]:=xsum;
-  xsum:=0;
-  for i:=0 to sizeof(BOOT.LBL)-1 do
-    xsum:=xsum xor ord(BOOT.LBL[i]);
-  BOOT.SLBL:=xsum;
-  Result:=True;
-end;
-}
 
 function ExtractPartNum(FName: string): byte;     // 'PARTITION_1\USER_12\filename.ext' -> 1
 var i: integer;
@@ -464,18 +482,18 @@ begin
           end;
         end;
       end;
-     new(PFRec);                                 // 20160909 Special catalog for sysgen (access MBR)
-     with PFRec^ do
-     begin
-      FileName:=SystemSector;
-      FileSize:=0;
-      FileTime:=0;
-      FileAttr:=faDirectory;
-     end;
-     FileList.Add(PFRec);
-     new(PFRec);                                 // 0160909 Special file for sysgen (access MBR)
-     with PFRec^ do
-     begin
+      new(PFRec);                                 // 20160909 Special catalog for sysgen (access MBR)
+      with PFRec^ do
+      begin
+        FileName:=SystemSector;
+        FileSize:=0;
+        FileTime:=0;
+        FileAttr:=faDirectory;
+      end;
+      FileList.Add(PFRec);
+      new(PFRec);                                 // 0160909 Special file for sysgen (access MBR)
+      with PFRec^ do
+      begin
         FileName:=SystemSector+'\'+SystemMBR;
         FileSize:=PhySectorSize;
         FileTime:=0;                            // FileGetDate(FSSrc.Handle)
@@ -497,6 +515,7 @@ begin
   FLibHandle:=0;
   with FFuncSet do begin
     FOpenArchivePart:=nil;
+    FCreateArchivePart:=nil;
     FReadHeader:=nil;
     FProcessFile:=nil;
     FCloseArchive:=nil;
@@ -529,6 +548,7 @@ begin
     raise Exception.CreateFmt('Error during loading '#13#10#10'`%s`', [LName])
   else with FSet do begin
     FOpenArchivePart:=GetProcAddress(Result, stOpenArchivePart);
+    FCreateArchivePart:=GetProcAddress(Result, stCreateArchivePart);
     FReadHeader:=GetProcAddress(Result, stReadHeader);
     FProcessFile:=GetProcAddress(Result, stProcessFile);
     FCloseArchive:=GetProcAddress(Result, stCloseArchive);
@@ -560,7 +580,7 @@ end;
 
 function TPartition.GetPartName: string;
 begin
-  Result:=Format('%s%d--%s,%s',[PartitionPrefix, Index, PartTypeStr(), PartSizeStr()]);
+  Result:=Format('%s%d--%s,%s',[PartitionPrefix, {Index}PartN, PartTypeStr(), PartSizeStr()]);
 end;
 
 function TPartition.PartSizeStr: string;
@@ -570,18 +590,22 @@ begin
   if (PSz<1024) then
     Result:=Format('%dK', [PSz])
   else if (FPartSize<1024*1024) then
-    Result:=Format('%dM', [(PSz+512) div 1024])
+    Result:=Format('%dM', [(PSz+PhySectorSize) div 1024])
   else
-    Result:=Format('%dG', [(PSz+(512*1024)) div (1024*1024)])
+    Result:=Format('%dG', [(PSz+(PhySectorSize*1024)) div (1024*1024)])
 end;
 
 function TPartition.PartTypeStr: string;
 begin
+  if (FPartType=Vars.CPMpartID) then result:=stCPM
+  else if (FPartType=Vars.FATpartID) then result:=stFAT
+  else if (FPartType=Vars.UZIXpartID) then result:=stUZIX
+  else
   case FPartType of
     0: Result:='';
-    $01,$04,$06,$0B,$0C,$0E,$0F,$11,$14,$16,$1B,$1C,$1E,$8b,$8c: result:='FAT';
-    $21: result:='UZIX';
-    $52, $D8, $DB: result:='CPM';
+    $01,$04,$06,$0B,$0C,$0E,$0F,$11,$14,$16,$1B,$1C,$1E,$8b,$8c: result:=stFAT;
+    $21: result:=stUZIX;
+    $52, $D8, $DB: result:=stCPM;
     $FF, $02, $03: result:='XENIX';
     $07, $86, $87: result:='NTFS';
     $08, $09: result:='AIX-OS2';
@@ -633,17 +657,48 @@ end;
 { TPartitions }
 
 function TPartitions.AddPartition(PartNum:DWORD; PPartTab: PArray16): TPartition;
+var ParBeg, ParSize: DWORD;
+    NewIndex: integer;
 begin
-  Result:=TPartition(Add);
+  ParBeg:= PDWORD(@PPartTab^[8])^;
+  ParSize:=PDWORD(@PPartTab^[12])^;
+  NewIndex:=0;
+  while NewIndex<Count do begin
+    if (ParBeg<Items[NewIndex].PartBeg) then
+    begin
+      if (ParBeg+ParSize>Items[NewIndex].PartBeg) then
+        raise Exception.CreateFmt('There are patition configuration errors for partition %d', [PartNum])
+      else
+        break;
+    end
+    else begin
+      if (ParBeg<Items[NewIndex].PartBeg+Items[NewIndex].PartSize) then
+        raise Exception.CreateFmt('There are patition configuration errors for partition %d', [PartNum])
+    end;
+    inc(NewIndex);
+  end;
+  if NewIndex<Count then                                // partition list will sorted by PartitionStartAddress (PartBeg)
+    Result:=TPartition(Insert(NewIndex))
+  else
+    Result:=TPartition(Add);              // tcollection
   if Assigned(Result) then with Result do
   begin
     FPartN := PartNum;
     FActive := PPartTab^[0]=$80;
     FPartType:=PPartTab^[4];
-    FPartBeg:= PDWORD(@PPartTab^[8])^;
-    FPartSize:=PDWORD(@PPartTab^[12])^;
+    FPartBeg:= ParBeg;
+    FPartSize:=ParSize;
+    FPartTab:=PPartTab^;
     Update;
   end;
+end;
+
+function TPartitions.ByPartN(ParN: integer): TPartition;
+var i:integer;
+begin
+  Result:=nil;
+  for i:=0 to Count-1 do
+    if (ParN=Items[i].FPartN) then Result:=Items[i];
 end;
 
 constructor TPartitions.Create;
@@ -656,6 +711,14 @@ end;
 function TPartitions.GetItem(Index: Integer): TPartition;
 begin
   Result := TPartition(inherited Items[Index]);
+end;
+
+function TPartitions.IndexByPartN(ParN: integer): integer;
+var i:integer;
+begin
+  Result:=0;
+  for i:=0 to Count-1 do
+    if (ParN=Items[i].FPartN) then Result:=i;
 end;
 
 procedure TPartitions.SetArcFName(FName: string);
@@ -672,8 +735,18 @@ begin
      try
        FS:=TFileStream.Create(FName, fmOpenReadWrite or fmShareDenyWrite);
        FS.Seek(0, soFromBeginning);                                      {V1.01}
-       FS.Read(TmpBuf, 512);
+       FS.Read(TmpBuf, PhySectorSize);
        FMBRScheme:=(TmpBuf[510]=85)and(TmpBuf[511]=170);                // 55 AA
+       if (not FMBRScheme) and DoInit and
+          (MessageBox(0, 'Image not initialised (no MBR record)'#13#10#10'Initialize it? All data in image will be lost!', 'Confirm', MB_ICONQUESTION+MB_YESNO)=ID_YES) then
+       begin
+         FillChar(TmpBuf, PhySectorSize, 0);
+         FMBRScheme:=True;
+         TmpBuf[510]:=85; TmpBuf[511]:=170;                             // 55 AA
+         FS.Seek(0, soFromBeginning);
+         if FS.Write(TmpBuf, PhySectorSize)<>PhySectorSize then
+           MessageBox(0, PChar('Can not write MBR to file  '+FName), 'Write Error', MB_OK+MB_ICONERROR);
+       end;
      finally
        if Assigned(FS) then FS.Free;
      end;
@@ -705,7 +778,7 @@ begin
   FileListPos := 0;
   ArcFileName := StrPas(ArchiveData.ArcName);
   if not FileExists(ArcFileName) then
-    OhiCreateArchive(ArcFileName);
+    CPMCreateFilesystem(ArcFileName, 0, 0);
   if OhiGetCatalog(ArcFileName)>=0 then
     Result := 1
   else
@@ -740,7 +813,7 @@ begin
       PartN:=ExtractPartNum( FileName );
       xHeaderData:=HeaderData;
       if PartN<SystemPartN then
-        Partitions[PartN].FFuncSet.FReadHeader(hArcData, xHeaderData);
+        Partitions.ByPartN(PartN).FFuncSet.FReadHeader(hArcData, xHeaderData);
     end;
   end;
  end;
@@ -783,7 +856,7 @@ begin
       end
       else begin                                                                       // partitions access
         if PartN<SystemPartN then
-          Result:=Partitions[PartN].FFuncSet.FProcessFile(hArcData, Operation, DestPath, DestName);
+          Result:=Partitions.ByPartN(PartN).FFuncSet.FProcessFile(hArcData, Operation, DestPath, DestName);
       end
     end;
   end;
@@ -793,6 +866,145 @@ end;
 function CloseArchive (hArcData: THandle): integer; stdcall;
 begin
   Result := 0;
+end;
+
+function CreateMBRPartition(PFile: PChar; PType:integer; PSize:DWORD):integer;  // create partition record in MBR (PSize in sectors)
+type TFreeSegment=packed record
+                    FreeBeg:DWORD;
+                    FreeSize:DWORD;
+                  end;
+     PFreeSegment=^TFreeSegment;
+var NewTabIndex, ParN, idx: integer;
+    Fbeg, NextBeg: integer;
+    FreeAvail: TStringList;
+    libHandle:HMODULE;
+    PFreeSeg: PFreeSegment;
+    NewPartition:TPartition;
+    FS: TFileStream;
+  procedure InsertFreeSeg(SegBeg, SegSize: DWORD);
+  var ii:integer;
+  begin
+    ii:=0;
+    new(PFreeSeg);
+    PFreeSeg^.FreeBeg:=SegBeg;
+    PFreeSeg^.FreeSize:=SegSize;
+    while (ii<FreeAvail.Count) do                                               // search for bigger segment
+      if PFreeSegment(FreeAvail.Objects[ii])^.FreeSize<SegSize then
+        inc(ii)
+      else
+        break;
+    if ii<FreeAvail.Count then
+      FreeAvail.Insert(ii, SizeToStr(SegSize))                                  // and insert before it
+    else
+      ii:=FreeAvail.Add(SizeToStr(SegSize));                                    // or add if SegSize is maximum
+    FreeAvail.Objects[ii]:=pointer(PFreeSeg);
+  end;
+begin
+  Result:=E_NOT_SUPPORTED;
+  with Vars^ do begin
+    if PSize<MinPartSize then
+    begin
+      MessageBox(0, StrFmt(PChar(@TmpBuf[0]),
+                          'Wrong partition size specified!'#13#10#10'Minimum partition size is %s', [PChar(SizeToStr(MinPartSize*PhySectorSize))]),
+                          'Can not create partition', MB_OK+MB_ICONSTOP);
+      exit;
+    end;
+    try
+      FreeAvail:=nil;
+      FS:=TFileStream.Create(PFile, fmOpenReadWrite or fmShareDenyWrite);
+      FS.Seek(0, soFromBeginning);
+      FS.Read(TmpBuf, PhySectorSize);
+      FreeAvail:=TStringList.Create;
+      if ((TmpBuf[510]=85)and(TmpBuf[511]=170)) then begin                      // MBRScheme = 55 AA
+        NewTabIndex:=0;
+        while (NewTabIndex<4) do begin
+          if TmpBuf[NewTabIndex*16+ MBR_Table + MBR_PART_TYPE]=0
+            then break;
+          inc(NewTabIndex);
+        end;
+        if NewTabIndex>3 then begin
+           Result:=E_END_ARCHIVE;
+           MessageBox(0, 'No free partition records available to create partition', 'Can not create partition', MB_OK+MB_ICONERROR);
+           exit;
+        end;
+        Result:=E_NO_MEMORY;
+// first search for space before first partition
+        if (Partitions.Count=0) or
+           ((Partitions.Count>0) and (Partitions[0].PartBeg>DiskOffset+MinPartSize)) then
+        begin
+          new(PFreeSeg);
+          PFreeSeg^.FreeBeg:=DiskOffset;
+          if (Partitions.Count=0) then
+            FBeg:=FS.Size div PhySectorSize - DiskOffset
+          else
+            FBeg:=Partitions[0].PartBeg-DiskOffset;                               // skip MBR (DiskOffset=8sectors = 4kb), align to 4κα
+          PFreeSeg^.FreeSize:=FBeg;
+          idx:=FreeAvail.Add(SizeToStr(FBeg*PhySectorSize));
+          FreeAvail.Objects[idx]:=pointer(PFreeSeg);
+        end;
+// next search for space after every partition
+        ParN:=0;
+        while ParN<Partitions.Count do with Partitions[ParN] do
+        begin
+          FBeg:=PartBeg+PartSize;
+          if (FBeg mod 8)<>0 then FBeg:=(FBeg or 7)+1;                          // align to 8 (4k)
+          if ParN=Partitions.Count-1 then NextBeg:=FS.Size div PhySectorSize
+            else NextBeg:=Partitions[ParN+1].PartBeg;
+          NextBeg:=NextBeg and (High(DWORD) xor 7);                             // align to 8 (4k)
+          if NextBeg-FBeg>MinPartSize then
+            InsertFreeSeg(FBeg, NextBeg-FBeg);                                  // insert into sorted list
+          inc(ParN);
+        end;
+// now search for first available free segment for partition by partition size
+        idx:=0;
+        while (idx<FreeAvail.Count) do                                           // search for available free segment
+          if PFreeSegment(FreeAvail.Objects[idx])^.FreeSize>PSize then
+            break
+          else
+            inc(idx);
+        if idx<FreeAvail.Count then
+        begin                                                                   // space for partition founded -> CREATE IT
+            FillChar(TmpBuf[NewTabIndex*16+ MBR_Table], 16, 0);
+            TmpBuf[NewTabIndex*16+ MBR_Table + MBR_PART_TYPE]:=PType;
+            FBeg:=PFreeSegment(FreeAvail.Objects[idx])^.FreeBeg;
+            PDWORD(@TmpBuf[NewTabIndex*16+ MBR_Table + 8])^:=FBeg;
+            PDWORD(@TmpBuf[NewTabIndex*16+ MBR_Table + 12])^:=PSize;
+            FS.Seek(0, soFromBeginning);
+            if FS.Write(TmpBuf, PhySectorSize)=PhySectorSize then
+            begin
+              FS.Free;
+              FS:=nil;
+              if PType=CPMpartID then
+                Result:=CPMCreateFilesystem(StrPas(PFile), FBeg*PhySectorSize, PSize*PhySectorSize)
+              else if PType=UZIXpartID then
+              begin
+//                Result:=NewPartition.FFuncSet.FCreateArchivePart(PFile, FBeg, NewTabIndex, PSize);
+              end
+              else if PType=FATpartID then
+              begin
+              end;
+              if Result<>0 then
+                MessageBox(0, PChar('Can not create filesystem in partition of file  '+StrPas(PFile)), 'Write Error', MB_OK+MB_ICONERROR);
+            end
+            else
+              MessageBox(0, PChar('Can not write partition info to file  '+StrPas(PFile)), 'Write Error', MB_OK+MB_ICONERROR);
+        end
+        else
+           MessageBox(0, StrFmt(PChar(@TmpBuf[0]),
+                               'No free space available to create %s partition.'#13#10#10'Available free (>%s) segments :'#13#10'%s',
+                                 [PChar(SizeToStr(PSize*PhySectorSize)),PChar(SizeToStr(MinPartSize*PhySectorSize)),PChar(FreeAvail.Text)]),
+                               'Can not create partition', MB_OK+MB_ICONSTOP);
+      end;
+    finally
+      if Assigned(FS) then FS.Free;
+      if Assigned(FreeAvail) then
+      begin
+        for ParN:=0 to FreeAvail.Count-1 do
+          dispose(PFreeSegment(FreeAvail.Objects[ParN]));
+        FreeAvail.Free;
+      end;
+    end;
+  end;
 end;
 
 function SkipPartInfo(xPath: PChar):Pchar;
@@ -808,15 +1020,43 @@ end;
 
 function PackFiles(PackedFile, SubPath, SrcPath, AddList: PChar; Flags: integer): integer; stdcall;
 var PartNum:byte;
+    ch: char;
+    st, aList: string;
+    PType, PSize: integer;
     FS, FSOut: TFileStream;
     TmpBuf:array[0..PhySectorSize] of byte;
 begin
  with Vars^ do begin
+  Result := E_NOT_SUPPORTED;
+  if pos(SystemSector+'\',StrPas(AddList))<>0 then exit;
   Result := E_UNKNOWN_FORMAT;
   if not FileExists(PackedFile) then
-    OhiCreateArchive(PackedFile);
+    CPMCreateFilesystem(PackedFile, 0, 0);
   if OhiGetCatalog(PackedFile)>=0 then
   begin
+    aList:=AnsiUpperCase(StrPas(AddList));
+    if (aList[length(aList)]='\')and(SubPath=nil) then
+    begin                                                                       // if create partition
+      Result := E_NOT_SUPPORTED;
+      st:=LeftSubstrList(aList, ', \');                                                     // partition type
+      aList:=LeftSubstrList(aList, ', \');                                                  // partition size
+      if st=stCPM then PType:=CPMpartID
+      else if st=stFAT then PType:=FATpartID
+      else if st=stUZIX then PType:=UZIXpartID
+      else begin
+        MessageBox(0, StrFmt(PChar(@TmpBuf[0]),
+                            'Wrong partition type specified!'#13#10#10'Available types is : %s, %s, %s', [stCPM, stFAT, stUZIX]),
+                            'Can not create partition', MB_OK+MB_ICONSTOP);
+        exit;
+      end;
+      try
+        PSize:=StrToSize('0'+aList);                                                             // size in bytes
+      except
+        exit;
+      end;
+      Result:=CreateMBRPartition(PackedFile, PType, PSize div PhySectorSize);                  // create partition record in MBR (size in blocks)
+      exit;
+    end;
     PartNum:=ExtractPartNum( AddSlash(StrPas(SubPath))+AddList );
     if (PartNum=SystemPartN) then
     try                                                                                         // write MBR.bin
@@ -841,19 +1081,62 @@ begin
     else begin
       if (SubPath=nil)and(pos('\',string(AddList))=0) then
         PartNum:=0;
-      Result:=Partitions[ PartNum ].FFuncSet.FPackFiles(PackedFile, SkipPartInfo(SubPath), SrcPath, AddList, Flags);
+      Result:=Partitions.ByPartN(PartNum).FFuncSet.FPackFiles(PackedFile, SkipPartInfo(SubPath), SrcPath, AddList, Flags);
     end;
   end;
  end;
 end;
 
-function DeleteFiles(PackedFile, DeleteList: PChar): integer; stdcall;
+function DeleteFiles(PackedFile, DeleteList: PChar): integer; stdcall;          // delete files or partitions
+var NewDeleteList: string;
+    DelList: PChar;
+    FS: TFileStream;
+    ParN: integer;
 begin
+  DelList:=DeleteList;
   Result := E_UNKNOWN_FORMAT;
+  if ((DeleteList<>nil)and(DeleteList^<>#0)) then
   with Vars^ do
-   if FileExists(PackedFile) then
+  begin
+   NewDeleteList:='';
+   repeat
+     if  (StrPos(DeleteList, PChar(SystemSector+'\'))=DeleteList)
+       then Result:=E_NOT_SUPPORTED                                             // can not delete special catalog
+     else begin
+       NewDeleteList:=NewDeleteList+StrPas(SkipPartInfo(DeleteList))+#0;        // remove partition info from path
+       if (NewDeleteList='*.*'#0) then begin      // if do delete partition
+         NewDeleteList:='';                       // do not call plugin for this list item
+         ParN:=ExtractPartNum(DeleteList);
+         with Vars^ do try
+           FS:=TFileStream.Create(PackedFile, fmOpenReadWrite or fmShareDenyWrite);
+           FS.Seek(0, soFromBeginning);
+           FS.Read(TmpBuf, PhySectorSize);
+           if ((TmpBuf[510]=85)and(TmpBuf[511]=170)) then begin                 // MBRScheme = 55 AA
+            if (TmpBuf[ParN*16+ MBR_Table + MBR_PART_TYPE]<>0)and
+               (MessageBox(0, PChar('Sure to delete partition?'#13#10#13#10+StrPas(DeleteList)),'Confirm',MB_ICONQUESTION+MB_YESNO)=ID_YES )then               // nondeleted partitions
+             begin
+               TmpBuf[ParN*16+ MBR_Table + MBR_PART_TYPE]:=0;
+               FS.Seek(0, soFromBeginning);
+               if FS.Write(TmpBuf, PhySectorSize)=PhySectorSize then
+               begin
+                 Vars.Partitions.Delete(Vars.Partitions.IndexByPartN(ParN));
+                 Result:=0;
+               end;
+             end;
+           end;
+         finally
+           if Assigned(FS) then FS.Free;
+         end;
+       end;
+     end;
+     while (DeleteList^<>#0) do inc(DeleteList);
+     inc(DeleteList);
+   until DeleteList^=#0;
+   NewDeleteList:=NewDeleteList+#0;
+   if (FileExists(PackedFile) and (NewDeleteList[1]<>#0)) then
      if OhiGetCatalog(PackedFile)>=0 then
-       Result:=Partitions[ ExtractPartNum( DeleteList ) ].FFuncSet.FDeleteFiles(PackedFile, DeleteList);
+       Result:=Partitions.ByPartN(ExtractPartNum(DelList)).FFuncSet.FDeleteFiles(PackedFile, PChar(NewDeleteList));
+  end;
 end;
 
 function GetPackerCaps: integer; stdcall;
@@ -891,13 +1174,13 @@ begin
     with Partitions[i] do
       st:=st+#13#10#13#10+PartName+#13#10+PartInfo;
   MessageBox(Parent,
-             PChar( Format('TotalCommander archiver (WCX) plugin for serving OHI files'#13#10+
-                           '(Orion HDD Image files). Allow copy/extract CP/M files'#13#10+
+             PChar( Format('Double/TotalCommander archiver (WCX) plugin for serving OHI'#13#10+
+                           'files (Orion HDD Image files). Allow copy/extract CP/M files'#13#10+
                            'to/from OHI "hdd image" such simple as processing any'#13#10+
                            'archives with TotalCommander interface.'#13#10+
-                           #13#10'FREEWARE Version 1.05,'+
+                           #13#10'FREEWARE Version 1.07,'+
                            #13#10'distributed "AS IS" WITHOUT ANY WARRANTY'#13#10+
-                           #13#10'Copyright (C)2008-2016 Sergey A.'#13#10+
+                           #13#10'Copyright (C)2008-2019 Sergey A.'#13#10+
                            #13#10'Archive: `%s`'+st,
                            [ArcFileName]) ),
              'Information', MB_OK+MB_ICONINFORMATION);
@@ -928,15 +1211,20 @@ begin
   end;
 end;
 
-function OhiCreateArchive(ArcFName: string): integer;   { Creating CP/M filesystem with 8k block, 256 fcbs and 24k system offset }
-var i, readed: integer;
+function min(a,b:DWORD):DWORD;
+begin
+  if a<b then Result:=a else Result:=b;
+end;
+
+function CPMCreateFilesystem(ArcFName: string; PartOffs, PartSize:DWORD): integer;   { Creating CP/M filesystem with 8k block, 256 fcbs and 24k system offset }
+var i, readed: integer;                                 { PartOffs, PartSize in bytes }
     FS, FSOS: TFileStream;
     psize: integer;                                     { partition size in 512k blocks }
 begin
  with Vars^ do begin
   Result:=-1;
   readed:=0;
-  psize:=DefaultFSsize div 512;
+  psize:=min(DefaultFSsize, PartSize) div PhySectorSize;
   if psize>65535 then begin
     psize:=65535;                     // limit filesystem size to 32Mb
     if (BootDPB.DSM>4096) then
@@ -956,13 +1244,22 @@ begin
   FS:=nil;
   FSOS:=nil;
   try
-    FS:=TFileStream.Create(ArcFName, fmCreate);
-    FS.Write(TmpBuf, 512);                              { write MBR }
+    if PartSize=0 then begin
+      FS:=TFileStream.Create(ArcFName, fmCreate);
+      FS.Write(TmpBuf, PhySectorSize);                    { write MBR }
+    end
+    else begin
+      FS:=TFileStream.Create(ArcFName, fmOpenReadWrite or fmShareDenyWrite);
+      FS.Seek(PartOffs, soFromBeginning);
+    end;
     FillChar(TmpBuf, sizeof(TmpBuf), $E5);
-    for i:=2 to DefaultFSsize div 512 do
-      FS.Write(TmpBuf, 512);                            { initialize drive image body }
+    for i:=2 to min(DefaultFSsize, PartSize) div PhySectorSize do
+      FS.Write(TmpBuf, PhySectorSize);                  { initialize drive image body }
 {}
-    FS.Seek(512, soFromBeginning);                      { goto sector 1 }
+    if PartSize=0 then
+      FS.Seek(PhySectorSize, soFromBeginning)            { goto sector 1 }
+    else
+      FS.Seek(PartOffs, soFromBeginning);            { goto sector 1 of partition N }
     FillChar(TmpBuf, sizeof(TmpBuf), 0);
     FillChar(BootDPB, 0, sizeof(BootDPB));
     if FileExists(DefaultOScode) then
@@ -970,7 +1267,7 @@ begin
       FSOS:=TFileStream.Create(DefaultOScode, fmOpenReadWrite or fmShareDenyWrite);
       if Assigned(FSOS) then begin
         FSOS.Seek(0, soFromBeginning);
-        readed:=FSOS.Read(TmpBuf, 512);
+        readed:=FSOS.Read(TmpBuf, PhySectorSize);
       end;
       BootDPB.JMP:=PBootDPB(@TmpBuf[0])^.JMP;
     end
@@ -1007,21 +1304,21 @@ begin
       MessageBox(0, 'Filesystem size>32M - it can overflow AltairDOS ALV buffer - exiting', 'Warning', MB_ICONEXCLAMATION+MB_OK);
       exit;
     end;
-    if (readed=512) then
+    if (readed=PhySectorSize) then
       if Assigned(FSOS) then readed:=FSOS.Read(TmpBuf1k, 1024);
     if XorCRC(@TmpBuf1k, 768)=TmpBuf[$FF] then begin              // if source contain filetime area
       FillChar(TmpBuf1k, 768, 0);
       TmpBuf[$FF]:=0;
     end;
 
-    FS.Write(TmpBuf, 512);                       { write BOOTSECTOR, USERNAMES }
+    FS.Write(TmpBuf, PhySectorSize);             { write BOOTSECTOR, USERNAMES }
     FS.Write(TmpBuf1k, readed);                  { write FILEDATES & 256 bytes OS code}
 
     i:=3*4;                                      // 128b-sector counter (inside system tracks)
-    readed:=readed - 512;
-    while (readed=512) and (i<BootDPB.SPT*BootDPB.OFF) and Assigned(FSOS) do
+    readed:=readed - PhySectorSize;
+    while (readed=PhySectorSize) and (i<BootDPB.SPT*BootDPB.OFF) and Assigned(FSOS) do
     begin
-      readed:=FSOS.Read(TmpBuf, 512);
+      readed:=FSOS.Read(TmpBuf, PhySectorSize);
       FS.Write(TmpBuf, readed);                  { write OS code}
     end;
 {}
@@ -1050,6 +1347,9 @@ initialization
     if ExtractFileName(DefaultOScode)=DefaultOScode then
       DefaultOScode:=AddSlash(ExtractFilePath(IniFileName))+DefaultOScode;
     DefaultFSsize:=GetPrivateInt(stSectionCommon, stDefFSSize, 16777216);    // 16Mb
+    UZIXpartID:=GetPrivateInt(stSectionCommon, stUZIXpartID, $21);
+    CPMpartID:=GetPrivateInt(stSectionCommon, stCPMpartID, $52);
+    FATpartID:=GetPrivateInt(stSectionCommon, stFATpartID, $0C);          // FAT32 with LBA = $0C  or  FAT16 = $06
   end;
 
 finalization
@@ -1057,6 +1357,9 @@ finalization
     WritePrivateString(stSectionCommon, stLibList, Partitions.LibList);
     WritePrivateString(stSectionCommon, stOsCode, DefaultOScode);
     WritePrivateInt(stSectionCommon, stDefFSSize, DefaultFSsize);
+    WritePrivateInt(stSectionCommon, stUZIXpartID, UZIXpartID);
+    WritePrivateInt(stSectionCommon, stCPMpartID, CPMpartID);
+    WritePrivateInt(stSectionCommon, stFATpartID, FATpartID);
     Partitions.Free;
     if Assigned(FileList) then
     begin

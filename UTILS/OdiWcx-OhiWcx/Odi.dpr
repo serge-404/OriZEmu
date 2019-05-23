@@ -73,6 +73,7 @@ exports
 	CanYouHandleThisFile,
         SetChangeVolProc,
 	OpenArchivePart,
-        GetPartInfo;
+        GetPartInfo,
+        CreateArchivePart;
 
 end.

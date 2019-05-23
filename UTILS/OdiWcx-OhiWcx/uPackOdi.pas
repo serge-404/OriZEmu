@@ -240,6 +240,7 @@ type
     IniFileName: string;
     PartitionN: DWORD;         {V1.06}
     PartitionOffs: DWORD;      {V1.01}
+    PartitionSize: DWORD;
     PartitionRomOffs: DWORD;   {V1.05}
     RomdiskType: TRomdiskType;
     FileDate: integer;
@@ -268,6 +269,8 @@ function PackFiles(PackedFile, SubPath, SrcPath, AddList: PChar; Flags: integer)
 function DeleteFiles(PackedFile, DeleteList: PChar): integer; stdcall;
 function GetPackerCaps: integer; stdcall;
 function CanYouHandleThisFile(FileName: PChar): boolean; stdcall;
+function CreateArchivePart(ArcName: PChar; PartOffset: DWORD; PartN:DWORD; PartSize:DWORD): THandle; stdcall;
+
 procedure SetChangeVolProc(hArcData: THandle; pChangeVolProc1: TChangeVolProc); stdcall;
 procedure SetProcessDataProc(hArcData: THandle; pProcessDataProc: TProcessDataProc); stdcall;
 procedure ConfigurePacker(Parent: HWND; DllInstance:LongWord); stdcall;
@@ -1534,7 +1537,7 @@ begin
                    [OdiArchiveName, Result]);
 end;
 
-function OdiCreateArchive(ArcFName: string): integer;
+function OdiCreateArchive(ArcFName: string): integer;           // TODO add min(PartitionSize, FSsize)
 var FS, FSSys: TFileStream;
     i, Readed: integer;
 begin
@@ -1620,9 +1623,26 @@ end;
 
 //////////////////////////////////////////////////////////////////////////////
 
+function CreateArchivePart(ArcName: PChar; PartOffset: DWORD; PartN:DWORD; PartSize:DWORD): THandle; stdcall;
+begin
+ with Vars^ do begin
+  PartitionN:=PartN;
+  PartitionOffs:=PartOffset*512;
+  PartitionSize:=PartSize*512;
+  ArcFileName := StrPas(ArcName);
+  OdiCreateArchive(ArcFileName);
+  if OdiGetCatalog(ArcFileName)>=0 then
+    Result := 1
+  else
+    Result := 0;
+ end;
+end;
+
+
 function OpenArchivePart(ArcName: PChar; PartOffset: DWORD; PartN:DWORD): THandle; stdcall;
 begin
  with Vars^ do begin
+  PartitionSize:=high(DWORD);
   PartitionN:=PartN;
   PartitionOffs:=PartOffset*512;
   PartitionRomOffs:=0;                                  // 65536 for ROM, 0 else
