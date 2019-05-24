@@ -360,10 +360,17 @@ const GB=1024*1024*1024;
       MB=1024*1024;
       KB=1024;
 
+//function SizeToStr(sz: DWORD):string;
+//begin
+//    if (sz div GB > 0)and(sz mod GB < GB/2 ) then Result:=IntToStr(sz div GB)+'G'
+//    else if (sz div MB > 0)and(sz mod MB < MB/2 ) then Result:=IntToStr(sz div MB)+'M'
+//    else Result:=IntToStr(sz div KB)+'K';
+//end;
+
 function SizeToStr(sz: DWORD):string;
 begin
-    if (sz div GB > 0) then Result:=IntToStr(sz div GB)+'G'
-    else if (sz div MB > 0) then Result:=IntToStr(sz div MB)+'M'
+    if (sz/2 >= GB) then Result:=IntToStr(sz div GB)+'G'
+    else if (sz/2 >= MB) then Result:=IntToStr(sz div MB)+'M'
     else Result:=IntToStr(sz div KB)+'K';
 end;
 
@@ -377,9 +384,9 @@ begin
     ch:=st[Length(st)];
     while (not(ch in ['0'..'9'])) do begin
       case ch of
-        'K','k': SMult:=KB;
-        'M','m': SMult:=MB;
-        'G','g': SMult:=GB;
+        'K','k','ê','Ê': SMult:=KB;
+        'M','m','ì','Ì': SMult:=MB;
+        'G','g','ã','Ã': SMult:=GB;
       end;
       delete(st,Length(st),1);
       if Length(st)=0 then break;
@@ -596,15 +603,8 @@ begin
 end;
 
 function TPartition.PartSizeStr: string;
-var PSz:integer;
 begin
-  PSz:=FPartSize div 2;
-  if (PSz<1024) then
-    Result:=Format('%dK', [PSz])
-  else if (FPartSize<1024*1024) then
-    Result:=Format('%dM', [(PSz+PhySectorSize) div 1024])
-  else
-    Result:=Format('%dG', [(PSz+(PhySectorSize*1024)) div (1024*1024)])
+  Result:=SizeToStr(FPartSize*MinPartSize);
 end;
 
 function TPartition.PartTypeStr: string;
@@ -710,7 +710,10 @@ var i:integer;
 begin
   Result:=nil;
   for i:=0 to Count-1 do
-    if (ParN=Items[i].FPartN) then Result:=Items[i];
+    if (ParN=Items[i].FPartN) then
+      Result:=Items[i];
+  if Result=nil then
+    MessageBox(0, 'err', 'err', 0);    
 end;
 
 constructor TPartitions.Create;
@@ -739,8 +742,8 @@ var i, pt: integer;
 begin
  with Vars^ do begin
   FName:=trim(FName);
-  if FArcFName<>FName then
-  begin
+//  if FArcFName<>FName then
+//  begin
      FArcFName:=FName;
      for i:=Count-1 downto 0 do delete(i);
      FS:=nil;
@@ -750,7 +753,7 @@ begin
        FS.Read(TmpBuf, PhySectorSize);
        FMBRScheme:=(TmpBuf[510]=85)and(TmpBuf[511]=170);                // 55 AA
        if (not FMBRScheme) and DoInit and
-          (MessageBox(0, 'Image not initialised (no MBR record)'#13#10#10'Initialize it? All data in image will be lost!', 'Confirm', MB_ICONQUESTION+MB_YESNO)=ID_YES) then
+          (MessageBox(0, '`OHI` HDD Image not initialised (no MBR record)'#13#10#10'  Initialize it?   All data in image will be lost!', 'Confirm', MB_ICONQUESTION+MB_YESNO)=ID_YES) then
        begin
          FillChar(TmpBuf, PhySectorSize, 0);
          FMBRScheme:=True;
@@ -764,9 +767,9 @@ begin
      end;
      pt:=MBR_Table;
      if MBRScheme then for i:=0 to 3 do
-       if TmpBuf[i*16+ pt + MBR_PART_TYPE]<>0 then                      // nondelete partitions
+       if TmpBuf[i*16+ pt + MBR_PART_TYPE]<>0 then                      // nondeleted partitions
          AddPartition(i, PArray16(@TmpBuf[i*16+ pt]));
-  end;
+//  end;
  end;
 end;
 
@@ -923,9 +926,9 @@ var NewTabIndex, ParN, idx: integer;
       else
         break;
     if ii<FreeAvail.Count then
-      FreeAvail.Insert(ii, SizeToStr(SegSize))                                  // and insert before it
+      FreeAvail.Insert(ii, SizeToStr(SegSize*PhySectorSize))                                  // and insert before it
     else
-      ii:=FreeAvail.Add(SizeToStr(SegSize));                                    // or add if SegSize is maximum
+      ii:=FreeAvail.Add(SizeToStr(SegSize*PhySectorSize));                                    // or add if SegSize is maximum
     FreeAvail.Objects[ii]:=pointer(PFreeSeg);
   end;
   procedure mkfs(LibName:string);
@@ -937,7 +940,7 @@ var NewTabIndex, ParN, idx: integer;
       CreateArchivePart:=GetProcAddress(libHandle, stCreateArchivePart);
       if (Assigned(CreateArchivePart)) then
       begin
-        Result:=CreateArchivePart(PFile, FBeg, NewTabIndex, PSize);
+        Result:=CreateArchivePart(PFile, FBeg, NewTabIndex, PSize);             // sizes in PhySectorSize, not a byte
         FreeLibrary(libHandle);
       end
       else begin
@@ -1022,7 +1025,7 @@ begin
               FS.Free;
               FS:=nil;
               if PType=CPMpartID then
-                Result:=CPMCreateFilesystem(StrPas(PFile), FBeg*PhySectorSize, PSize*PhySectorSize)
+                Result:=CPMCreateFilesystem(StrPas(PFile), FBeg, PSize)
               else if PType=UZIXpartID then
                 mkfs(Partitions.UZIXlib)
               else if PType=FATpartID then
@@ -1058,7 +1061,9 @@ begin
   if StrPos(xPath, PartitionPrefix)=xPath then begin
     tmp:=StrPos(xPath, '\');
     if tmp<>nil then
-      Result:=@tmp[1];
+      Result:=@tmp[1]
+    else
+      Result:='';
   end
 end;
 
@@ -1268,6 +1273,8 @@ begin
  with Vars^ do begin
   Result:=-1;
   readed:=0;
+  PartSize:=PartSize*PhySectorSize;
+  PartOffs:=PartOffs*PhySectorSize;
   psize:=min(DefaultFSsize, PartSize) div PhySectorSize;
   if psize>65535 then begin
     psize:=65535;                     // limit filesystem size to 32Mb
@@ -1301,7 +1308,7 @@ begin
       FS.Write(TmpBuf, PhySectorSize);                  { initialize drive image body }
 {}
     if PartSize=0 then
-      FS.Seek(PhySectorSize, soFromBeginning)            { goto sector 1 }
+      FS.Seek(PhySectorSize, soFromBeginning)            { goto sector 1 - skip MBR }
     else
       FS.Seek(PartOffs, soFromBeginning);            { goto sector 1 of partition N }
     FillChar(TmpBuf, sizeof(TmpBuf), 0);
