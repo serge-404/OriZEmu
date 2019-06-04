@@ -61,7 +61,7 @@ AutoIncBuild=1
 MajorVer=1
 MinorVer=0
 Release=7
-Build=10
+Build=11
 Debug=0
 PreRelease=0
 Special=0
@@ -72,7 +72,7 @@ CodePage=1251
 [Version Info Keys]
 CompanyName=
 FileDescription=OHI (OrionHddImage CP/M filesystem) archiver plugin
-FileVersion=1.0.7.10
+FileVersion=1.0.7.11
 InternalName=Ohi.wcx
 LegalCopyright=Copyright © 2019 Sergey A.
 LegalTrademarks=

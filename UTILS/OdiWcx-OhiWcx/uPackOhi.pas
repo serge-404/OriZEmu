@@ -899,6 +899,11 @@ begin
   Result := 0;
 end;
 
+function max(a,b:integer):integer;
+begin
+  if a>b then result:=a else result:=b;
+end;
+
 function CreateMBRPartition(PFile: PChar; PType:integer; PSize:DWORD):integer;  // create partition record in MBR (PSize in sectors)
 type TFreeSegment=packed record
                     FreeBeg:DWORD;
@@ -926,9 +931,9 @@ var NewTabIndex, ParN, idx: integer;
       else
         break;
     if ii<FreeAvail.Count then
-      FreeAvail.Insert(ii, SizeToStr(SegSize*PhySectorSize))                                  // and insert before it
+      FreeAvail.Insert(ii, SizeToStr(max(0,SegSize-8)*PhySectorSize))           // and insert before it
     else
-      ii:=FreeAvail.Add(SizeToStr(SegSize*PhySectorSize));                                    // or add if SegSize is maximum
+      ii:=FreeAvail.Add(SizeToStr(max(0,SegSize-8)*PhySectorSize));             // or add if SegSize is maximum
     FreeAvail.Objects[ii]:=pointer(PFreeSeg);
   end;
   procedure mkfs(LibName:string);
