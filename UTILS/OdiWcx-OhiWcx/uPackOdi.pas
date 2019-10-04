@@ -147,6 +147,7 @@ const
   SystemTracks = 'UseThis_ToAccess_SystemTracks';
   SystemBin = 'System.bin';
   SystemUser = 254;
+  MaxUserLimit=64;                                      // count of on-disk catalogs
   RomOffsSize = $10000;
   OrdosSize = 2048;
   ROMDISK_TOP = 65535-OrdosSize;
@@ -232,6 +233,7 @@ type
     LogBlkInExt:integer;
     ExtentBuf: array of AnsiChar;
     USE_DPBLESS_DISKS: integer;
+    MaxUser: Integer;
 {}
     TmpBuf: array[0..512] of byte;
     FileListPos: integer;
@@ -449,6 +451,9 @@ var ss, ext, dpb, sys: string;
     i: integer;
 begin
  with Vars^ do begin
+  MaxUser:=GetPrivateProfileInt('PARAMS', 'USERS', 16, PChar(IniFileName));               // V1.06
+  if MaxUser>64 then
+    MaxUser:=MaxUserLimit;
   USE_DPBLESS_DISKS:=GetPrivateProfileInt('PARAMS', 'USE_DPBLESS_DISKS', 1, PChar(IniFileName));
   GetPrivateProfileString('PARAMS', 'FORMATS_LIST', '',
                           @TmpBuf[0], sizeof(TmpBuf)-1,PChar(IniFileName));
@@ -861,7 +866,7 @@ begin
       for i:=0 to BOOT.DPB.DRM do
       begin
         FS.Read(FCB, sizeof(FCB));
-        if FCB.User<16 then
+        if FCB.User<MaxUser then
           if Assigned(ScanCallBack) and (not ScanCallBack(FS, i, FCB, PParam)) then
              break;
       end;
@@ -1128,7 +1133,7 @@ begin
     DisposeFileList(FileList);
     FillChar(CatalogMap, sizeof(CatalogMap), $FF);
     FillChar(AllocationMap, sizeof(AllocationMap), $FF);
-    for j:=0 to 15 do                           // users(subdirs)
+    for j:=0 to ((MaxUser-1) and $7f) do                           // users(subdirs)
     begin
       new(PFRec);
       with PFRec^ do
@@ -1413,7 +1418,7 @@ begin
       end;
     end
     else begin
-     FCB.User := FCB.User and $0F;
+     FCB.User := FCB.User and (MaxUser-1) and $7F;    //  FCB.User and $0F;
      StrPLCopy(FCB.FileName, padr(chrtran(ChangeFileExt(AnsiUpperCase(ExtractFileName(ArchFileName)), '.'), ' .', '_'), 8, ' '), 8);
      if FCB.FileName[0]=' ' then
      begin
@@ -1829,6 +1834,8 @@ initialization
 finalization
   with Vars^ do begin
 {$ifndef ORIONZEM}
+    WritePrivateProfileString('PARAMS', 'USERS',
+                            PChar(IntToStr(MaxUser)), PChar(IniFileName));
     WritePrivateProfileString('PARAMS', 'USE_DPBLESS_DISKS',
                             PChar(IntToStr(USE_DPBLESS_DISKS)), PChar(IniFileName));
     if Assigned(FileList) then
