@@ -78,6 +78,7 @@ const
   stCPM = 'CPM';
   stUZIX= 'UZIX';
   stFAT = 'FAT';
+  stMessages = 'Messages';
   stUZIXpartID           = stUZIX+'partID';
   stCPMpartID            = stCPM+'partID';
   stFATpartID            = stFAT+'partID';
@@ -100,6 +101,7 @@ const
   DiskOffset=8;                                                             // offset from disk start
   MinPartSize=512;                                                          // minimum partition size = 256kb
   PhySectorSize = 512;
+  Messages:integer=0;
   PartitionPrefix = 'Partition_';
   SystemSector = 'UseThis_ToAccess_MBR';
   SystemMBR = 'mbr.bin';
@@ -522,7 +524,10 @@ begin
     end;
     if Res and Partitions.MBRScheme then Result:=0;
   except
-    Result:=-1;
+    on E:Exception do begin
+      if (Messages<>0) then MessageBox(0, PChar(E.ClassName+': '+E.Message) , 'Error', 0);
+      Result:=-1;
+    end;  
   end;
 end;
 
@@ -713,7 +718,7 @@ begin
     if (ParN=Items[i].FPartN) then
       Result:=Items[i];
   if Result=nil then
-    MessageBox(0, 'err', 'err', 0);    
+    MessageBox(0, 'Partitions.ByPartN', 'Error', 0);
 end;
 
 constructor TPartitions.Create;
@@ -753,7 +758,7 @@ begin
        FS.Read(TmpBuf, PhySectorSize);
        FMBRScheme:=(TmpBuf[510]=85)and(TmpBuf[511]=170);                // 55 AA
        if (not FMBRScheme) and DoInit and
-          (MessageBox(0, '`OHI` HDD Image not initialised (no MBR record)'#13#10#10'  Initialize it?   All data in image will be lost!', 'Confirm', MB_ICONQUESTION+MB_YESNO)=ID_YES) then
+          (MessageBox(0, #13#10'`OHI` HDD Image not initialised (no MBR record)'#13#10#10'  Initialize it?   All data in image will be lost!'#13#10, 'Confirm', MB_ICONQUESTION+MB_YESNO)=ID_YES) then
        begin
          FillChar(TmpBuf, PhySectorSize, 0);
          FMBRScheme:=True;
@@ -1074,7 +1079,6 @@ end;
 
 function PackFiles(PackedFile, SubPath, SrcPath, AddList: PChar; Flags: integer): integer; stdcall;
 var PartNum:byte;
-    ch: char;
     st, aList: string;
     PType, PSize: integer;
     FS, FSOut: TFileStream;
@@ -1167,7 +1171,7 @@ begin
            FS.Read(TmpBuf, PhySectorSize);
            if ((TmpBuf[510]=85)and(TmpBuf[511]=170)) then begin                 // MBRScheme = 55 AA
             if (TmpBuf[ParN*16+ MBR_Table + MBR_PART_TYPE]<>0)and
-               (MessageBox(0, PChar('Sure to delete partition?'#13#10#13#10+StrPas(DeleteList)),'Confirm',MB_ICONQUESTION+MB_YESNO)=ID_YES )then               // nondeleted partitions
+               (MessageBox(0, PChar(#13#10#10'Sure to delete partition?'#13#10#13#10+StrPas(DeleteList)+#13#10),'Confirm',MB_ICONQUESTION+MB_YESNO)=ID_YES )then               // nondeleted partitions
              begin
                TmpBuf[ParN*16+ MBR_Table + MBR_PART_TYPE]:=0;
                FS.Seek(0, soFromBeginning);
@@ -1417,6 +1421,7 @@ initialization
     UZIXpartID:=GetPrivateInt(stSectionCommon, stUZIXpartID, $21);
     CPMpartID:=GetPrivateInt(stSectionCommon, stCPMpartID, $52);
     FATpartID:=GetPrivateInt(stSectionCommon, stFATpartID, $0C);          // FAT32 with LBA = $0C  or  FAT16 = $06
+    Messages:=GetPrivateInt(stSectionCommon, stMessages, 0);
   end;
 
 finalization
@@ -1430,6 +1435,7 @@ finalization
     WritePrivateInt(stSectionCommon, stUZIXpartID, UZIXpartID);
     WritePrivateInt(stSectionCommon, stCPMpartID, CPMpartID);
     WritePrivateInt(stSectionCommon, stFATpartID, FATpartID);
+    WritePrivateInt(stSectionCommon, stMessages, Messages);
     Partitions.Free;
     if Assigned(FileList) then
     begin
