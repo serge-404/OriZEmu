@@ -1,11 +1,11 @@
 object frmSetts: TfrmSetts
-  Left = 236
-  Top = 127
+  Left = 232
+  Top = 118
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Settings'
-  ClientHeight = 364
-  ClientWidth = 514
+  ClientHeight = 373
+  ClientWidth = 518
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -34,8 +34,8 @@ object frmSetts: TfrmSetts
   object PageControl1: TPageControl
     Left = 0
     Top = 0
-    Width = 514
-    Height = 328
+    Width = 518
+    Height = 337
     ActivePage = tsCPU
     Align = alClient
     TabOrder = 0
@@ -126,7 +126,7 @@ object frmSetts: TfrmSetts
       object Label2: TLabel
         Left = 220
         Top = 11
-        Width = 91
+        Width = 93
         Height = 13
         Caption = 'Рус/Lat switch key'
       end
@@ -201,7 +201,7 @@ object frmSetts: TfrmSetts
         Left = 149
         Top = 34
         Width = 344
-        Height = 24
+        Height = 21
         TabOrder = 1
       end
       object btnRomBios: TButton
@@ -227,7 +227,7 @@ object frmSetts: TfrmSetts
         Left = 148
         Top = 66
         Width = 344
-        Height = 24
+        Height = 21
         TabOrder = 3
       end
       object gbOrionPro: TGroupBox
@@ -415,7 +415,7 @@ object frmSetts: TfrmSetts
         Left = 152
         Top = 164
         Width = 342
-        Height = 24
+        Height = 21
         Hint = 'Initial BIOS and base drivers'
         TabOrder = 6
       end
@@ -433,7 +433,7 @@ object frmSetts: TfrmSetts
         Left = 151
         Top = 196
         Width = 342
-        Height = 24
+        Height = 21
         Hint = 'Extended BIOS and drivers, OS, user programms'
         TabOrder = 8
       end
@@ -1081,8 +1081,8 @@ object frmSetts: TfrmSetts
   end
   object Panel1: TPanel
     Left = 0
-    Top = 328
-    Width = 514
+    Top = 337
+    Width = 518
     Height = 36
     Align = alBottom
     TabOrder = 1

@@ -590,7 +590,7 @@ procedure TfrmMain.SetROM1BIOS(FName: string);
 var FStream: TFileStream;
 begin
   FillChar(ROM1BIOS, SizeOf(ROM1BIOS), $FF);
-  if trim(FName)='' then exit;
+  if (trim(FName)='') or (not FileExists(FName)) then exit;
   FStream:=TFileStream.Create(FName, fmOpenRead or fmShareDenyWrite);
   ROM1BIOSlen:=MIN(FStream.Size, $10000);
   FStream.ReadBuffer(ROM1BIOS[0], ROM1BIOSlen);
@@ -601,7 +601,7 @@ procedure TfrmMain.SetROM2BIOS(FName: string);
 var FStream: TFileStream;
 begin
   FillChar(ROM2BIOS, SizeOf(ROM2BIOS), $FF);
-  if trim(FName)='' then exit;
+  if (trim(FName)='') or (not FileExists(FName)) then exit;
   FStream:=TFileStream.Create(FName, fmOpenRead or fmShareDenyWrite);
   ROM2BIOSlen:=MIN(FStream.Size, $200000);
   FStream.ReadBuffer(ROM2BIOS[0], ROM2BIOSlen);
@@ -700,8 +700,24 @@ begin
 end;
 
 procedure TfrmMain.FormActivate(Sender: TObject);
+var ErrStr: string;
+ function GetErrStr:string;
+ begin
+   Result:='';
+   case Z80CardMode of
+     Z80_ORIONPRO_v2, Z80_ORIONPRO_v3, Z80_ORIONPRO_v320:
+       begin
+         if not FileExists(ROM1BIOSfile) then Result:=#13#10+ROM1BIOSfile;
+       end;
+     Z80CARD_MOSCOW, Z80CARD_MINIMAL, Z80CARD_USUAL, Z80CARD_MAXIMAL:
+       begin
+         if not FileExists(ROMBIOSfile) then Result:=#13#10+ROMBIOSfile;
+       end;
+   end;
+ end;
 begin
   OnActivate:=nil;
+  CPUSuspend;
   Application.OnMessage := AppKeyDown;
   CreateBitmap(pbDraw.ClientWidth, pbDraw.ClientHeight);
   pbDraw.Canvas.Draw(0, 0, ScrBitmap);
@@ -713,6 +729,7 @@ begin
     BindIniParameters;
     IniManager.GetAllValues;
     IniManager.GetAllProps;
+    PrevScrZoom:=ScrZoom;
 {Eth}
     EthMAC[0]:=chr(lo(EthMAC0));
     EthMAC[1]:=chr(lo(EthMAC1));
@@ -731,11 +748,26 @@ begin
     IniManager.GetRecentFilesSection;
     if ExtractFilePath(ROMBIOSfile)='' then
        ROMBIOSfile:=ExtractFilePath(FMainIniFile.Filename)+ROMBIOSfile;
-    if not FileExists(ROMBIOSfile) then
+    ErrStr:=GetErrStr();
+    if (ErrStr<>'') then
     begin
-      Application.MessageBox(PChar(ROMBIOSfile), 'File not found', MB_ICONERROR+MB_OK);
-      Application.Terminate;
-      exit;
+      Application.MessageBox(PChar(ErrStr), 'File(s) not found, please correct INI:', MB_ICONERROR+MB_OK);
+      frmSetts:=TfrmSetts.Create(Application);
+      if (Assigned(frmSetts)) then with frmSetts do
+      try
+        PageControl1.ActivePage:=tsROM;
+        ShowModal;
+        Free;
+      finally
+        if (not CPUPaused) then CPUResume;
+        frmSetts:=nil;
+      end;
+      ErrStr:=GetErrStr();
+      if (ErrStr<>'') then begin
+        Application.MessageBox(PChar(ErrStr), 'File(s) still not found:', MB_ICONERROR+MB_OK);
+        Application.Terminate;
+        exit;
+      end;
     end;
     SetROMBIOS(ROMBIOSfile);
     SetROM1BIOS(ROM1BIOSfile);
@@ -795,7 +827,7 @@ begin
         end;
       end;
     CPUPaused:=GetKeyState(VK_CONTROL)<0;               // initial started PAUSED if CTRL key pressed
-    if CPUPaused then CPUSuspend;
+    if not CPUPaused then CPUResume;
   except
     raise                      // To  do
   end;
@@ -2041,11 +2073,12 @@ begin
 end;
 
 procedure TfrmMain.SetFormSize;
-var i, m: integer;
+var i, m, prev: integer;
     b: boolean;
     FResize: TNotifyEvent;
 begin
   StopScrThread;
+  prev:=ClientHeight;
   b:=pnScr.Visible;
   if not b then
     ActScrExecute(Self);
@@ -2057,8 +2090,11 @@ begin
   repeat
     i:=ClientHeight+1;
     ClientHeight:=i;
-    if i<>ClientHeight then
+    if i<>ClientHeight then begin
+      ClientHeight:=prev;
+      ScrZoom:=PrevScrZoom;
       raise Exception.Create('Can not resize form Height');
+    end;  
   until pbDraw.Height=ScrHeightArr[ScrZoom];
   m:=ScrWidthArr[ScrWidth, ScrZoom];
   Width:=m;
@@ -2084,6 +2120,7 @@ begin
      (ScrHeightArr[TMenuItem(Sender).Tag]>GetDeviceCaps(GetDC(0), VERTRES))or
      (ScrWidthArr[ScrWidth, TMenuItem(Sender).Tag]>GetDeviceCaps(GetDC(0), HORZRES))
    then exit;
+  PrevScrZoom:=ScrZoom;
   ScrZoom:=TMenuItem(Sender).Tag;
   if pnScr.Visible then
     SetFormSize

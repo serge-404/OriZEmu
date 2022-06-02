@@ -20,13 +20,15 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls;
+  StdCtrls, ExtCtrls;
 
 type
   TFrmSave = class(TForm)
+    Panel1: TPanel;
     lbOrdFiles: TListBox;
-    BtnSave: TButton;
+    Panel2: TPanel;
     BtnCancel: TButton;
+    BtnSave: TButton;
   private
     { Private declarations }
   public

@@ -227,6 +227,7 @@ var
 
   ScrWidth: integer = SCR_WIDTH_384;      // 0=SCR_WIDTH_384, 1=SCR_WIDTH_400, 2=SCR_WIDTH_480, 3=SCR_WIDTH_512
   ScrZoom: integer = SCR_ZOOM_X2;         // 0=SCR_ZOOM_X1,  1=SCR_ZOOM_X2,  3=SCR_ZOOM_X25,  4=SCR_ZOOM_X3
+  PrevScrZoom: integer = SCR_ZOOM_X2;
   PrevScrWidth: integer = SCR_WIDTH_384;
   CpuPaused:boolean = False;
   DoShowReg:boolean = True;
